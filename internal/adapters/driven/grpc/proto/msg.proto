@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package rpc;
+
+option go_package = "./pb";
+
+message TextFieldsReq {
+    string fieldName = 1;
+    bytes fieldValue = 2;
+}
+
+message TextFieldRes {
+    bool result = 1;
+}
+
+message FileInfo{
+    string fileName = 1;
+    string fileType = 2;
+    uint32 streamID = 3;
+}
+
+message FileUploadReq {
+    oneof info {
+        FileInfo fileInfo = 1;
+        bytes fileData = 2;
+    }
+}
+
+message FileUploadRes {
+    string fileName = 1;
+    uint32 fileSize = 2;
+}

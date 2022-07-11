@@ -1,0 +1,7 @@
+make.exe --dry-run --always-make --keep-going --print-directory
+make.exe: Entering directory `c:/Users/v.novikov/go/src/github.com/vynovikov/study/postParser'
+go mod init myTCPServer
+go get ./...
+ 
+make.exe: Leaving directory `c:/Users/v.novikov/go/src/github.com/vynovikov/study/postParser'
+ 
