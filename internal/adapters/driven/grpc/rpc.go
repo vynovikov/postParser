@@ -52,7 +52,7 @@ func doTransmit(c pb.PostParserClient, conn *grpc.ClientConn, adu repo.AppDistri
 		req = &pb.FileUploadReq{
 			Info: &pb.FileUploadReq_FileInfo{
 				FileInfo: &pb.FileInfo{
-					FileName: adu.H.Name,
+					FileName: adu.H.FormName,
 					FileType: "zxc",
 					StreamID: uint32(rand.Intn(50)),
 				},

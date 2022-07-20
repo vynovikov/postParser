@@ -58,7 +58,7 @@ func (r *Receiver) Handle(conn net.Conn) {
 	r.a.AddToFeeder(ru)
 
 	for {
-		b := repo.NewReceiverBody()
+		b := repo.NewReceiverBody(1024)
 
 		n, err := bufReader.Read(b.B)
 		if n < len(b.B) {

@@ -7,7 +7,7 @@ make.exe all --print-data-base --no-builtin-variables --no-builtin-rules --quest
 # There is NO WARRANTY, to the extent permitted by law.
  
 
-# Make data base, printed on Fri Jul 08 13:07:14 2022
+# Make data base, printed on Tue Jul 19 11:11:14 2022
 
 # Variables
 
@@ -42,8 +42,6 @@ PATHEXT = .COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC
 # makefile (from `makefile', line 1)
 MAKEFILE_LIST :=  Makefile
 # environment
-FPS_BROWSER_USER_PROFILE_STRING = Default
-# environment
 TMP = C:\Users\V57C9~1.NOV\AppData\Local\Temp
 # environment
 VSCODE_AMD_ENTRYPOINT = vs/workbench/api/node/extensionHostProcess
@@ -56,10 +54,7 @@ VSCODE_CWD = C:\Program Files\Microsoft VS Code
 # environment
 GOPROXY = https://proxy.golang.org,direct
 # environment
-PATH = C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Windows\System32\OpenSSH\;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Git\cmd;C:\Program Files\Git\mingw64\bin;;C:\Program Files\Dock 
-make.exe: *** No rule to make target `all'.  Stop.
-
-er\Docker\resources\bin;C:\ProgramData\DockerDesktop\version-bin;C:\Program Files\Go\bin;C:\Users\v.novikov\AppData\Local\Microsoft\WindowsApps;C:\Program Files\Git\mingw64\bin;C:\Program Files\Microsoft VS Code\bin;C:\Users\v.novikov\go\bin
+PATH = C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Windows\System32\OpenSSH\;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Git\cmd;C:\Program Files\Git\mingw64\bin;;C:\Program Files\Docker\Docker\resources\bin;C:\ProgramData\DockerDesktop\version-bin;C:\Program Files\Go\bin;C:\Users\v.novikov\AppData\Local\Microsoft\WindowsApps;C:\Program Files\Git\mingw64\bin;C:\Program Files\Microsoft VS Code\bin;C:\Users\v.novikov\go\bin
 # environment
 COMMONPROGRAMW6432 = C:\Program Files\Common Files
 # environment
@@ -81,7 +76,7 @@ ELECTRON_RUN_AS_NODE = 1
 # environment
 GOBIN = C:\Users\v.novikov\go\bin
 # environment
-CHROME_CRASHPAD_PIPE_NAME = \\.\pipe\crashpad_8440_JDYGMNEJNQICFGCR
+CHROME_CRASHPAD_PIPE_NAME = \\.\pipe\crashpad_12316_OJKGLJGFFUKJIOHD
 # environment
 COMPUTERNAME = WIN-MV8FIKKKE9F
 # environment
@@ -97,7 +92,7 @@ PUBLIC = C:\Users\Public
 # environment
 GOMODCACHE = C:\Users\v.novikov\go\pkg\mod
 # environment
-VSCODE_CODE_CACHE_PATH = C:\Users\v.novikov\AppData\Roaming\Code\CachedData\92d25e35d9bf1a6b16f7d0758f25d48ace11e5b9
+VSCODE_CODE_CACHE_PATH = C:\Users\v.novikov\AppData\Roaming\Code\CachedData\b06ae3b2d2dbfe28bca3134cc6be65935cdfea6a
 # environment
 APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL = 1
 # environment
@@ -137,7 +132,7 @@ PROCESSOR_IDENTIFIER = Intel64 Family 6 Model 165 Stepping 3, GenuineIntel
 # environment
 OS = Windows_NT
 # environment
-VSCODE_IPC_HOOK = \\.\pipe\c217220a88957ccc8e80d35d3530f07c-1.69.0-main-sock
+VSCODE_IPC_HOOK = \\.\pipe\c217220a88957ccc8e80d35d3530f07c-1.69.1-main-sock
 # environment
 HOMEPATH = \Users\v.novikov
 # environment
@@ -183,13 +178,11 @@ LANG = C
 # environment
 PROCESSOR_LEVEL = 6
 # environment
-FPS_BROWSER_APP_PROFILE_STRING = Internet Explorer
-# environment
-VSCODE_PID = 8440
+VSCODE_PID = 12316
 # environment
 USERDOMAIN_ROAMINGPROFILE = WIN-MV8FIKKKE9F
 # variable set hash-table stats:
-# Load=87/1024=8%, Rehash=0, Collisions=12/105=11%
+# Load=85/1024=8%, Rehash=0, Collisions=12/103=12%
 
 # Pattern-specific Variable Values
 
@@ -198,23 +191,26 @@ USERDOMAIN_ROAMINGPROFILE = WIN-MV8FIKKKE9F
 # Directories
 
 # : could not be stat'd.
-# C:\Users\v.novikov\go\bin (key C:/Users/v.novikov/go/bin, mtime 1657201246): 18 files, no impossibilities.
+# C:\Users\v.novikov\go\bin (key C:/Users/v.novikov/go/bin, mtime 1657783269): 18 files, no impossibilities.
 # C:\Program Files\Docker\Docker\resources\bin (key C:/Program Files/Docker/Docker/resources/bin, mtime 1653668707): 13 files, no impossibilities.
-# C:\Program Files\Go\bin (key C:/Program Files/Go/bin, mtime 1654276205): 4 files, no impossibilities.
+# C:\Program Files\Go\bin (key C:/Program Files/Go/bin, mtime 1657901365): 4 files, no impossibilities.
 # C:\Windows\System32\WindowsPowerShell\v1.0\ (key C:/Windows/System32/WindowsPowerShell/v1.0/, mtime 1650387624): 32 files, no impossibilities.
 # C:\Windows\System32\Wbem (key C:/Windows/System32/Wbem, mtime 1650443734): 382 files, no impossibilities.
-# . (key c:/Users/v.novikov/go/src/github.com/vynovikov/study/postParser, mtime 1657037489): 11 files, no impossibilities.
+# . (key c:/Users/v.novikov/go/src/github.com/vynovikov/study/postParser, mtime 1657552497): 13 files, no impossibilities.
 # C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common (key C:/Program Files (x86)/NVIDIA Corporation/PhysX/Common, mtime 1650307201): 10 files, no impossibilities.
 # C:\Program Files\Git\mingw64\bin (key C:/Program Files/Git/mingw64/bin, mtime 1650704724): 110 files, no impossibilities.
 # C:\Windows\System32\OpenSSH\ (key C:/Windows/System32/OpenSSH/, mtime 1575729444): 9 files, no impossibilities.
-# C:\Program Files\Microsoft VS Code\bin (key C:/Program Files/Microsoft VS Code/bin, mtime 1657266464): 4 files, no impossibilities.
+# C:\Program Files\Microsoft VS Code\bin (key C:/Program Files/Microsoft VS Code/bin, mtime 1657693218): 4 files, no impossibilities.
 # C:\Windows (key C:/Windows, mtime 1650307201): 108 files, no impossibilities.
 # C:\ProgramData\DockerDesktop\version-bin: could not be stat'd.
 # C:\Program Files\Git\cmd (key C:/Program Files/Git/cmd, mtime 1650443706): 8 files, no impossibilities.
-# C:\Windows\system32 (key C:/Windows/system32, mtime 1656399487): 4611 files, no impossibilities.
-# C:\Users\v.novikov\AppData\Local\Microsoft\WindowsApps (key C:/Users/v.novikov/AppData/Local/Microsoft/WindowsApps, mtime 1650302487): 4 files, no impossibilities.
+# C:\Windows\system32 (key C:/Windows/system32, mtime 1657608504): 4611 files, no impossibilities.
+# C:\Users\v.novikov\AppData\Local\Mic 
+make.exe: *** No rule to make target `all'.  Stop.
 
-# 5324 files, no impossibilities in 16 directories.
+rosoft\WindowsApps (key C:/Users/v.novikov/AppData/Local/Microsoft/WindowsApps, mtime 1650302487): 4 files, no impossibilities.
+
+# 5326 files, no impossibilities in 16 directories.
 
 # Implicit Rules
 
@@ -264,14 +260,14 @@ init:
 
 # No general (`VPATH' variable) search path.
 
-# strcache buffers: 11 (10) / strings = 5290 / storage = 86894 B / avg = 16 B
-# current buf: size = 8162 B / used = 5350 B / count = 345 / avg = 15 B
-# other used: total = 78732 B / count = 4945 / avg = 15 B
-# other free: total = 76 B / max = 14 B / min = 2 B / avg = 7 B
+# strcache buffers: 11 (10) / strings = 5292 / storage = 86909 B / avg = 16 B
+# current buf: size = 8162 B / used = 5367 B / count = 346 / avg = 15 B
+# other used: total = 78747 B / count = 4946 / avg = 15 B
+# other free: total = 78 B / max = 13 B / min = 4 B / avg = 7 B
 
-# strcache performance: lookups = 5347 / hit rate = 1%
+# strcache performance: lookups = 5349 / hit rate = 1%
 # hash-table stats:
-# Load=5290/8192=65%, Rehash=0, Collisions=3482/5347=65%
-# Finished Make data base on Fri Jul 08 13:07:14 2022
+# Load=5292/8192=65%, Rehash=0, Collisions=3486/5349=65%
+# Finished Make data base on Tue Jul 19 11:11:14 2022
 
  

@@ -79,11 +79,11 @@ func (a *App) Work() {
 
 		//logger.L.Infof("in applicatiom.Work made header %v\n", afu.H)
 
-		ao := newAppDistributorUnit(afu)
+		//	ao := newAppDistributorUnit(afu)
 
 		//logger.L.Infof("work done. Made %v\n with part %d\n", ao.H, afu.R.H.Part)
 
-		a.toChanOut(ao)
+		//	a.toChanOut(ao)
 	}
 
 }
@@ -123,6 +123,7 @@ func newAppHeader() *repo.AppFeederHeader {
 	return &repo.AppFeederHeader{}
 }
 
+/*
 func newAppDistributorUnit(afu repo.AppFeederUnit) repo.AppDistributorUnit {
 	return repo.AppDistributorUnit{
 		B: repo.DistributorBody(afu.R.B),
@@ -132,3 +133,4 @@ func newAppDistributorUnit(afu repo.AppFeederUnit) repo.AppDistributorUnit {
 		},
 	}
 }
+*/

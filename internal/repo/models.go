@@ -68,6 +68,10 @@ type ReceiverSignal struct {
 	Signal string
 }
 
+func (rh *ReceiverHeader) SetPart(p int) {
+	rh.Part = p
+}
+
 func NewReceiverSignal(s string) ReceiverSignal {
 	return ReceiverSignal{
 		Signal: s,
@@ -136,33 +140,43 @@ func NewReceiverHeader(ts string, peaked []byte) ReceiverHeader {
 		Voc:  NewVocabulary(boundary),
 	}
 }
-func NewReceiverBody() ReceverBody {
+func NewReceiverBody(n int) ReceverBody {
 	return ReceverBody{
-		B: make([]byte, 1024),
+		B: make([]byte, n),
 	}
 }
 
 type SepHeader struct {
 	IsBoundary bool
-	PrevBody   string
+	Lines      []string
 }
 
-func NewSepHeader(isBoundary bool, prevBody string) *SepHeader {
+func NewSepHeader(isBoundary bool, prevBody []string) *SepHeader {
 	return &SepHeader{
 		IsBoundary: isBoundary,
-		PrevBody:   prevBody,
+		Lines:      prevBody,
+	}
+}
+
+func NewSepHeaderBP(isBoundary bool, prevBody []string) SepHeader {
+	return SepHeader{
+		IsBoundary: isBoundary,
+		Lines:      prevBody,
 	}
 }
 
 type SepBody struct {
-	Name   string
-	SeqNum int
+	Line string
 }
 
-func NewSepBody(name string, seqNum int) *SepBody {
+func NewSepBody(line string) *SepBody {
 	return &SepBody{
-		Name:   name,
-		SeqNum: seqNum,
+		Line: line,
+	}
+}
+func NewSepBodyBP(l string) SepBody {
+	return SepBody{
+		Line: l,
 	}
 }
 
@@ -180,6 +194,20 @@ func NewAppFeederHeader(sepHeader *SepHeader, sepBody *SepBody, prevPart int) *A
 	}
 }
 
+type AppFeederHeaderBP struct {
+	SepHeader SepHeader
+	SepBody   SepBody
+	PrevPart  int
+}
+
+func NewAppFeederHeaderBP(sh SepHeader, sb SepBody, pp int) AppFeederHeaderBP {
+	return AppFeederHeaderBP{
+		SepHeader: sh,
+		SepBody:   sb,
+		PrevPart:  pp,
+	}
+}
+
 type AppFeederUnit struct {
 	H *AppFeederHeader
 	R ReceiverUnit
@@ -192,8 +220,23 @@ func NewAppFeaderUnit(h *AppFeederHeader, r ReceiverUnit) AppFeederUnit {
 	}
 }
 
-func (af *AppFeederUnit) SetReceiverUnit(r ReceiverUnit) {
-	af.R = r
+func (afu *AppFeederUnit) SetReceiverUnit(r ReceiverUnit) {
+	afu.R = r
+}
+
+func (b *Boundary) SetBoundaryPrefix(s string) {
+	b.Prefix = s
+}
+func (b *Boundary) SetBoundaryRoot(s string) {
+	b.Root = s
+}
+func (afu *AppFeederUnit) SetBody(b []byte) {
+	afu.R.B.B = b
+}
+
+func (sh *SepHeader) Set(b bool, s []string) {
+	sh.IsBoundary = false
+	sh.Lines = s
 }
 
 //Todo test embedded structs with pointers
@@ -202,16 +245,87 @@ type MultipartHeader struct {
 	SeqNum int
 }
 
-type DistributorHeader struct {
-	M    MultipartHeader
-	Name string
-	TS   string
+func NewMultipartHeader(n int) MultipartHeader {
+	return MultipartHeader{
+		SeqNum: n,
+	}
 }
+
+type AppDistributorHeader struct {
+	M        MultipartHeader
+	FormName string
+	FileName string
+	TS       string
+}
+
+func NewAppDistributorHeader(m MultipartHeader, ts, fo, fi string) AppDistributorHeader {
+	return AppDistributorHeader{
+		M:        m,
+		FormName: fo,
+		FileName: fi,
+		TS:       ts,
+	}
+}
+
+func (h *AppDistributorHeader) SetFormMame(fo string) {
+	h.FormName = fo
+}
+
+func (h *AppDistributorHeader) SetFileName(fi string) {
+	h.FileName = fi
+}
+
+/*
+func NewDistributorHeader(afu AppFeederUnit, header string) DistributorHeader {
+	h := make([]string, 0)
+
+	for _, v := range afu.H.SepHeader.PrevBody {
+		h = append(h, v)
+	}
+	h = append(h, header)
+
+	formName := ""
+	//h[strings.Index(h, afu.R.H.Voc.FormName)+len(afu.R.H.Voc.FormName)+1 : FindNext(h, "\"", strings.Index(h, afu.R.H.Voc.FormName)+len(afu.R.H.Voc.FormName))]
+	fileName := ""
+	for _, v := range h {
+		if strings.Contains(v, afu.R.H.Voc.FormName) {
+			formName = v[strings.Index(v, afu.R.H.Voc.FormName)+len(afu.R.H.Voc.FormName)]
+		}
+
+		if strings.Contains(v, afu.R.H.Voc.FileName) {
+			fileName = v[strings.Index(h, afu.R.H.Voc.FileName)+len(afu.R.H.Voc.FileName)+1 : FindNext(h, "\"", strings.Index(h, afu.R.H.Voc.FileName)+len(afu.R.H.Voc.FileName))]
+		}
+	}
+
+	return DistributorHeader{
+		FormName: formName,
+		FileName: fileName,
+		TS:       afu.R.H.TS,
+	}
+}
+*/
+
 type DistributorBody struct {
 	B []byte
 }
 
+func NewDistributorBody(b []byte) DistributorBody {
+	return DistributorBody{
+		B: b,
+	}
+}
+func (b *DistributorBody) SetBody(body []byte) {
+	b.B = body
+}
+
 type AppDistributorUnit struct {
-	H DistributorHeader
+	H AppDistributorHeader
 	B DistributorBody
+}
+
+func NewAppDistributorUnit(h AppDistributorHeader, b DistributorBody) AppDistributorUnit {
+	return AppDistributorUnit{
+		H: h,
+		B: b,
+	}
 }
