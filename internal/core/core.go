@@ -73,25 +73,19 @@ func (c *Core) ParseBegin(afu repo.AppFeederUnit) (repo.AppDistributorUnit, repo
 		s = string(afu.R.B.B)
 	}
 
-	logger.L.Infof("in core.ParseBegin prevLines: %q\n", afu.H.SepHeader.Lines)
-
 	if lens > beginningLen {
 		head = repo.GetLinesFw(s[:beginningLen], afu.H.SepHeader.Lines, repo.MaxLineLimit, afu.R.H.Voc)
 	} else {
 		head = repo.GetLinesFw(s, afu.H.SepHeader.Lines, repo.MaxLineLimit, afu.R.H.Voc)
 	}
-	logger.L.Infof("in core.ParseBegin curLines: %q\n", head.CurLines)
 
 	lines := repo.JoinLines(afu.H.SepHeader.Lines, head)
-	logger.L.Infof("in core.ParseBegin lines: %q\n", lines)
 
 	if len(lines) == 3 {
 		fo, fi = repo.FindForm(lines[1], afu.R.H.Voc)
 		firstBodyPos = repo.FindFirstBodyPos(s, afu.H.SepHeader.Lines, head.CurLines)
 		lastBodyPos, l = repo.FindLastBodyPos(s, firstBodyPos, afu.R.H.Voc.Boundary)
 	}
-	logger.L.Infof("in core.ParseBegin firstBodyPos: %d and s: %q\n", firstBodyPos, s[firstBodyPos:])
-	logger.L.Infof("in core.ParseBegin lastBodyPos: %d\n", lastBodyPos)
 
 	sepB1 := repo.NewSepBodyBP(l)
 	afhBlueprint := repo.NewAppFeederHeaderBP(repo.SepHeader{}, sepB1, afu.R.H.Part)
@@ -101,8 +95,6 @@ func (c *Core) ParseBegin(afu repo.AppFeederUnit) (repo.AppDistributorUnit, repo
 	db := repo.NewDistributorBody(afu.R.B.B[firstBodyPos:lastBodyPos])
 
 	adu := repo.NewAppDistributorUnit(dh, db)
-
-	//logger.L.Infof("in core.ParseBegin adu: %v\n", adu)
 
 	return adu, afhBlueprint, nil
 

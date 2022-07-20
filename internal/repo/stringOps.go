@@ -333,9 +333,6 @@ func GetLinesFw(s string, prevLines []string, limit int, voc Vocabulaty) Lines {
 	wholeLine := ""
 	st := strings.Trim(s, Sep)
 	if st != s {
-
-		//logger.L.Infof("trimming done. \ns was %q\ns became %q\n", s, st)
-
 		s = st
 		isWhole = true
 	}
@@ -373,8 +370,6 @@ func GetLinesFw(s string, prevLines []string, limit int, voc Vocabulaty) Lines {
 		}
 		wholeLine += line
 
-		logger.L.Infof("in repo.GetLinesFw wholeLine after trimming: %q\n", line)
-
 		if i == 0 &&
 			(wholeLine == voc.Boundary.Prefix+voc.Boundary.Root ||
 				(strings.Contains(wholeLine, voc.CDisposition) &&
@@ -382,7 +377,6 @@ func GetLinesFw(s string, prevLines []string, limit int, voc Vocabulaty) Lines {
 						(strings.Contains(wholeLine, voc.FileName) && r2.MatchString(wholeLine)))) ||
 				(strings.Contains(wholeLine, voc.CType))) {
 
-			logger.L.Infof("in repo.GetLinesFw i = %d line : %q\n", i, line)
 			lines = append(lines, line)
 
 			if strings.Contains(line, voc.CType) {
