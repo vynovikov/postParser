@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -114,3 +115,32 @@ func (s *repoSuite) TestJoinLines() {
 		})
 	}
 }
+
+func (s *repoSuite) TestSkippedLinesEnd() {
+	str := "11111" + Sep + "222222" + Sep + "3333333" + Sep + "44444444" + Sep + "555555555"
+	p := SkippedLinesEnd(str, strings.Index(str, "222222"), 2, len(str))
+
+	s.Equal("4", string(str[p]))
+	s.Equal("5", string(str[p+3]))
+}
+
+/*
+func (s *repoSuite) TestSlicer() {
+	str := "11111" + Sep + "bPefix" + "bRoot" + Sep + "22222" + Sep + "3333333" + Sep + "bPefix" + "bRoot" + Sep + "444444" + Sep + "555555555" + Sep
+	voc := Vocabulaty{
+		Boundary: Boundary{
+			Prefix: "bPefix",
+			Root:   "bRoot",
+		},
+	}
+	pieces := Slicer(str, voc)
+
+	s.Equal([]Piece{
+		{needsBegin: true, needsEnd: false, c: "11111"},
+		{needsBegin: false, needsEnd: false, c: "bPefix" + "bRoot" + Sep + "22222" + Sep + "3333333"},
+		{needsBegin: false, needsEnd: true, c: "bPefix" + "bRoot" + Sep + "444444" + Sep + "555555555" + Sep},
+		//	{needsBegin: false, needsEnd: true, c: "bPefix" + "bRoo"},
+	},
+		pieces)
+}
+*/

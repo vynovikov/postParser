@@ -555,3 +555,90 @@ func GetPrevLineLimit(s string, startPos, limit int) string {
 
 	return line
 }
+
+func SkippedLinesEnd(s string, fromIndex, skippedLines, limit int) int {
+
+	lc := 0
+	p := fromIndex
+
+	for {
+		p++
+		if s[p] == 13 {
+			lc++
+		}
+		if p == fromIndex+limit {
+			return -1
+		}
+		if lc == skippedLines+1 {
+			break
+		}
+	}
+	return p - 1
+}
+
+/*
+func Slicer(s string, voc Vocabulaty) []Piece {
+	last := len(s) - 1
+	pieces := make([]Piece, 0)
+	pieces = append(pieces, NewPiece())
+	pieces[len(pieces)-1].SetNeedsBegin(true)
+
+	boundNum := strings.Count(s, voc.Boundary.Prefix+voc.Boundary.Root)
+
+	if boundNum == 1 {
+		pieces[0].SetContent(s)
+
+		return pieces
+	}
+
+	lastIndex := LineStartPosLimit(s, last, len(voc.Boundary.Prefix+voc.Boundary.Root))
+
+	if lastIndex < 0 {
+		lastIndex = len(s)
+	}
+	lastLineLen := 0
+
+	if lastIndex > 0 {
+		lastLineLen = len(s[lastIndex:])
+	}
+
+	firstPIndex := strings.Index(s, voc.Boundary.Prefix+voc.Boundary.Root)
+
+	pieces[len(pieces)-1].SetContent(s[:firstPIndex-2])
+
+	s = s[firstPIndex:]
+
+	for i := 0; i < boundNum-1; i++ {
+		nextPIndex := strings.Index(s[1:], voc.Boundary.Prefix+voc.Boundary.Root) + 1
+
+		pieces = append(pieces, NewPiece())
+		pieces[len(pieces)-1].SetNeedsBegin(false)
+		pieces[len(pieces)-1].SetNeedsEnd(false)
+		pieces[len(pieces)-1].SetContent(s[:nextPIndex-2])
+
+		s = s[nextPIndex:]
+	}
+
+	if lastLineLen > 0 &&
+		s[LastPrintPosLimit(s, last, len(voc.Boundary.Prefix+voc.Boundary.Root)):] == (voc.Boundary.Prefix + voc.Boundary.Root)[:lastLineLen] {
+
+		pieces = append(pieces, NewPiece())
+		pieces[len(pieces)-1].SetNeedsEnd(false)
+		pieces[len(pieces)-1].SetNeedsBegin(false)
+		pieces[len(pieces)-1].SetContent(s[:lastIndex-2])
+
+		pieces = append(pieces, NewPiece())
+		pieces[len(pieces)-1].SetNeedsEnd(true)
+		pieces[len(pieces)-1].SetNeedsBegin(false)
+		pieces[len(pieces)-1].SetContent(s[lastIndex:])
+
+	} else {
+		pieces = append(pieces, NewPiece())
+		pieces[len(pieces)-1].SetNeedsBegin(false)
+		pieces[len(pieces)-1].SetNeedsEnd(true)
+		pieces[len(pieces)-1].SetContent(s)
+	}
+
+	return pieces
+}
+*/

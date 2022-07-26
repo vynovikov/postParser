@@ -128,6 +128,18 @@ func NewBoundary(p, r, s string) Boundary {
 	}
 }
 
+type BoundaryB struct {
+	Prefix []byte
+	Root   []byte
+	Suffix []byte
+}
+
+func NewBoundaryB(r []byte) BoundaryB {
+	return BoundaryB{
+		Root: r,
+	}
+}
+
 func NewReceiverHeader(ts string, peaked []byte) ReceiverHeader {
 	s := string(peaked)
 	bPrefix, bRoot := FindBoundary(s)
@@ -216,6 +228,16 @@ type AppFeederUnit struct {
 func NewAppFeaderUnit(h *AppFeederHeader, r ReceiverUnit) AppFeederUnit {
 	return AppFeederUnit{
 		H: h,
+		R: r,
+	}
+}
+
+type AppFeederUnitB struct {
+	R ReceiverUnit
+}
+
+func NewAppFeederUnitB(r ReceiverUnit) AppFeederUnitB {
+	return AppFeederUnitB{
 		R: r,
 	}
 }
@@ -327,5 +349,53 @@ func NewAppDistributorUnit(h AppDistributorHeader, b DistributorBody) AppDistrib
 	return AppDistributorUnit{
 		H: h,
 		B: b,
+	}
+}
+
+type AppPieceHeader struct {
+	Part int
+	TS   string
+	B    bool //is begin needed?
+	E    bool //is end needed?
+}
+
+func NewAppPieceHeader() AppPieceHeader {
+	return AppPieceHeader{}
+}
+
+func (p *AppPieceHeader) SetTS(ts string) {
+	p.TS = ts
+}
+
+func (p *AppPieceHeader) SetPart(part int) {
+	p.Part = part
+}
+
+func (p *AppPieceHeader) SetB(b bool) {
+	p.B = b
+}
+func (p *AppPieceHeader) SetE(e bool) {
+	p.E = e
+}
+
+type AppPieceBody struct {
+	B []byte
+}
+
+func NewAppPieceBody(b []byte) AppPieceBody {
+	return AppPieceBody{
+		B: b,
+	}
+}
+
+type AppPieceUnit struct {
+	APH AppPieceHeader
+	APB AppPieceBody
+}
+
+func NewAppPieceUnit(aph AppPieceHeader, apb AppPieceBody) AppPieceUnit {
+	return AppPieceUnit{
+		APH: aph,
+		APB: apb,
 	}
 }
