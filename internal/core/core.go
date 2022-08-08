@@ -1,101 +1,85 @@
 package core
 
 import (
-	"errors"
 	"postParser/internal/logger"
 	"postParser/internal/repo"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 type Core struct{}
 
 type Parser interface {
-	ParseBegin(repo.AppFeederUnit) (repo.AppDistributorUnit, repo.AppFeederHeaderBP, error)
-	ParseEnd(repo.AppFeederUnit)
+	Slicer(repo.AppFeederUnit) (repo.AppPieceUnit, []repo.AppPieceUnit, repo.AppPieceUnit)
+	ParseBegin(repo.AppPieceUnit, repo.Vocabulaty) ([][]byte, error)
+	ParseMiddle(repo.AppPieceUnit, repo.Vocabulaty) ([][]byte, error)
+	ParseEnd(repo.AppPieceUnit, repo.Vocabulaty) ([][]byte, error)
 }
 
 func NewCore() Parser {
 	return &Core{}
 }
+func (c *Core) Slicer(afu repo.AppFeederUnit) (repo.AppPieceUnit, []repo.AppPieceUnit, repo.AppPieceUnit) {
+	boundary := repo.GenBoundary(afu.R.H.Voc.Boundary)
 
-func (c *Core) ParseEnd(afu repo.AppFeederUnit) {
-	//"/r"=13 "/n"=10
-	//|BBBBBBBBBBBBBBB/r| - separated body
-	//|BBBBBBBBBBBBBBB/r/n| - separated body
-	//|BBBBBBBBBBBBBBB/r/n/-| - separared boundary
-	//|BBBBBBBBBBBBBBB/r/n/----| - separared boundary, end of sending
-	//|BBBBBBBBBBBBBBB/r/n/----xxx| - separared boundary, end of sending
-	//|BBBBBBBBBBBBBBB/r/n/-----xxxx/r| - separared boundary, end of sending
-	//|BBBBBBBBBBBBBBB/r/n/-----xxxx/r/n| - separared boundary, end of sending
-	//|BBBBBBBBBBBBBBB/r/n/-----xxxx/r/n/C| - separared Header
-
-	s := ""
-	endingLen := len(afu.R.H.Voc.Boundary.Prefix) + len(afu.R.H.Voc.Boundary.Root) + len(repo.Disposition) + len(repo.CType) + 40
-	endingLimit := len(repo.Disposition) + 30
-
-	if len(afu.R.B.B) > endingLen {
-		s = string(afu.R.B.B[len(afu.R.B.B)-endingLen:])
-	} else {
-		s = string(afu.R.B.B)
+	b, m, e := repo.Slicer(afu.R.B.B, boundary)
+	if !cmp.Equal(b, repo.AppPieceUnit{}) {
+		b.APH.SetPart(afu.R.H.Part)
+		b.APH.SetTS(afu.R.H.TS)
 	}
 
-	lens := len(s)
-	if lens == 0 {
-		return
+	if !cmp.Equal(e, repo.AppPieceUnit{}) {
+		e.APH.SetPart(afu.R.H.Part)
+		e.APH.SetTS(afu.R.H.TS)
 	}
 
-	lines := repo.GetLinesRev(s, endingLimit, afu.R.H.Voc)
-	if len(lines) > 1 {
-		afu.H.SepHeader.IsBoundary = false
+	for _, v := range m {
+		v.APH.SetPart(afu.R.H.Part)
+		v.APH.SetTS(afu.R.H.TS)
+		logger.L.Infof("in core.Slicer got piece with header %v with body %q\n", v.APH, v.APB.B)
 	}
-	if len(lines) == 1 {
-		afu.H.SepHeader.IsBoundary = true
-	}
-	afu.H.PrevPart = afu.R.H.Part
-	afu.H.SepHeader.Lines = lines
-	logger.L.Infof("in core.ParseEnd afu PrevPart %v\n", afu.H.PrevPart)
-	logger.L.Infof("in core.ParseEnd afu SepHeader %v\n", afu.H.SepHeader)
-
+	return b, m, e
 }
-func (c *Core) ParseBegin(afu repo.AppFeederUnit) (repo.AppDistributorUnit, repo.AppFeederHeaderBP, error) {
-	s, fo, fi, l, firstBodyPos, lastBodyPos := string(afu.R.B.B), "", "", "", 0, 0
-	head := repo.NewLines(make([]string, 0), false)
 
-	lens := len(s)
-	if lens == 0 {
-		return repo.AppDistributorUnit{}, repo.AppFeederHeaderBP{}, errors.New("unable to get afu content")
+// Parsing first lines of byte slice, detecting if this lines contain Content-Disposition header part
+// ToDo refactor to catch errors
+func (c *Core) ParseBegin(apu repo.AppPieceUnit, voc repo.Vocabulaty) ([][]byte, error) {
+
+	//logger.L.Infof("in core.ParseBegin in part %d body: %q\n", apu.APH.Part, apu.APB.B)
+
+	lines, err := repo.GetLinesRight(apu.APB.B, repo.MaxLineLimit, voc)
+	if err != nil {
+		return nil, err
 	}
 
-	beginningLen := len(afu.R.H.Voc.Boundary.Prefix) + len(afu.R.H.Voc.Boundary.Root) + len(repo.Disposition) + len(repo.CType) + 40
+	//logger.L.Infof("in core.ParseBegin in part %d lines: %q\n", apu.APH.Part, repo.GetLinesRight(apu.APB.B, repo.MaxLineLimit, voc))
 
-	if len(s) > beginningLen {
-		s = string(afu.R.B.B)[:beginningLen]
-	} else {
-		s = string(afu.R.B.B)
+	return lines, nil
+}
+
+func (c *Core) ParseMiddle(apu repo.AppPieceUnit, voc repo.Vocabulaty) ([][]byte, error) {
+
+	//logger.L.Infof("in core.ParseMiddle in part %d body: %q\n", apu.APH.Part, apu.APB.B)
+
+	lines, err := repo.GetLinesMiddle(apu.APB.B, repo.MaxHeaderLimit, voc)
+	if err != nil {
+		return nil, err
 	}
+	//logger.L.Infof("in core.ParseMiddle in part %d lines %q\n", apu.APH.Part, lines)
 
-	if lens > beginningLen {
-		head = repo.GetLinesFw(s[:beginningLen], afu.H.SepHeader.Lines, repo.MaxLineLimit, afu.R.H.Voc)
-	} else {
-		head = repo.GetLinesFw(s, afu.H.SepHeader.Lines, repo.MaxLineLimit, afu.R.H.Voc)
+	return lines, nil
+}
+
+// Parsing last lines of byte slice, detecting if lines contain Content-Disposition header part
+func (c *Core) ParseEnd(apu repo.AppPieceUnit, voc repo.Vocabulaty) ([][]byte, error) {
+
+	//logger.L.Infof("in core.ParseEnd in part %d body: %q\n", apu.APH.Part, apu.APB.B)
+
+	lines, err := repo.GetLinesLeft(apu.APB.B, repo.MaxHeaderLimit, voc)
+	if err != nil {
+		return nil, err
 	}
+	//logger.L.Infof("in core.ParseEnd in part %d lines: %q\n", apu.APH.Part, lines)
 
-	lines := repo.JoinLines(afu.H.SepHeader.Lines, head)
-
-	if len(lines) == 3 {
-		fo, fi = repo.FindForm(lines[1], afu.R.H.Voc)
-		firstBodyPos = repo.FindFirstBodyPos(s, afu.H.SepHeader.Lines, head.CurLines)
-		lastBodyPos, l = repo.FindLastBodyPos(s, firstBodyPos, afu.R.H.Voc.Boundary)
-	}
-
-	sepB1 := repo.NewSepBodyBP(l)
-	afhBlueprint := repo.NewAppFeederHeaderBP(repo.SepHeader{}, sepB1, afu.R.H.Part)
-
-	m := repo.NewMultipartHeader(0)
-	dh := repo.NewAppDistributorHeader(m, afu.R.H.TS, fo, fi)
-	db := repo.NewDistributorBody(afu.R.B.B[firstBodyPos:lastBodyPos])
-
-	adu := repo.NewAppDistributorUnit(dh, db)
-
-	return adu, afhBlueprint, nil
-
+	return lines, nil
 }

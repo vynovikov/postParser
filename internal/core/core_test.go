@@ -1,11 +1,8 @@
 package core
 
 import (
-	"postParser/internal/logger"
-	"postParser/internal/repo"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -17,6 +14,7 @@ func TestCoreSuite(t *testing.T) {
 	suite.Run(t, new(coreSuite))
 }
 
+/*
 func (c *coreSuite) TestParseBegin() {
 	ts := repo.RandomString(6)
 	afu := repo.AppFeederUnit{
@@ -178,3 +176,4 @@ func (c *coreSuite) TestParseBegin() {
 	}
 
 }
+*/

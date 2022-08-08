@@ -115,36 +115,20 @@ func (r *ReceiverUnit) SetSignal(s ReceiverSignal) {
 }
 
 type Boundary struct {
-	Prefix string
-	Root   string
-	Suffix string
-}
-
-func NewBoundary(p, r, s string) Boundary {
-	return Boundary{
-		Prefix: p,
-		Root:   r,
-		Suffix: s,
-	}
-}
-
-type BoundaryB struct {
 	Prefix []byte
 	Root   []byte
 	Suffix []byte
 }
 
-func NewBoundaryB(r []byte) BoundaryB {
-	return BoundaryB{
+func NewBoundary(r []byte) Boundary {
+	return Boundary{
 		Root: r,
 	}
 }
 
 func NewReceiverHeader(ts string, peaked []byte) ReceiverHeader {
-	s := string(peaked)
-	bPrefix, bRoot := FindBoundary(s)
 
-	boundary := NewBoundary(bPrefix, bRoot, "")
+	boundary := FindBoundary(peaked)
 
 	return ReceiverHeader{
 		Part: 0,
@@ -221,23 +205,11 @@ func NewAppFeederHeaderBP(sh SepHeader, sb SepBody, pp int) AppFeederHeaderBP {
 }
 
 type AppFeederUnit struct {
-	H *AppFeederHeader
 	R ReceiverUnit
 }
 
-func NewAppFeaderUnit(h *AppFeederHeader, r ReceiverUnit) AppFeederUnit {
+func NewAppFeederUnit(r ReceiverUnit) AppFeederUnit {
 	return AppFeederUnit{
-		H: h,
-		R: r,
-	}
-}
-
-type AppFeederUnitB struct {
-	R ReceiverUnit
-}
-
-func NewAppFeederUnitB(r ReceiverUnit) AppFeederUnitB {
-	return AppFeederUnitB{
 		R: r,
 	}
 }
@@ -246,11 +218,11 @@ func (afu *AppFeederUnit) SetReceiverUnit(r ReceiverUnit) {
 	afu.R = r
 }
 
-func (b *Boundary) SetBoundaryPrefix(s string) {
-	b.Prefix = s
+func (b *Boundary) SetBoundaryPrefix(bs []byte) {
+	b.Prefix = bs
 }
-func (b *Boundary) SetBoundaryRoot(s string) {
-	b.Root = s
+func (b *Boundary) SetBoundaryRoot(bs []byte) {
+	b.Root = bs
 }
 func (afu *AppFeederUnit) SetBody(b []byte) {
 	afu.R.B.B = b
@@ -352,11 +324,34 @@ func NewAppDistributorUnit(h AppDistributorHeader, b DistributorBody) AppDistrib
 	}
 }
 
+type CallBoard struct {
+	FormName     string
+	FileName     string
+	InitPart     int
+	InitFragment []byte
+}
+
+func NewCB(p int, f []byte) *CallBoard {
+	return &CallBoard{
+		InitPart:     p,
+		InitFragment: f,
+	}
+}
+
+func (c *CallBoard) SetFormMame(f string) {
+	c.FormName = f
+}
+
+func (c *CallBoard) SetFileMame(f string) {
+	c.FileName = f
+}
+
 type AppPieceHeader struct {
 	Part int
 	TS   string
 	B    bool //is begin needed?
 	E    bool //is end needed?
+	CB   *CallBoard
 }
 
 func NewAppPieceHeader() AppPieceHeader {
@@ -398,4 +393,15 @@ func NewAppPieceUnit(aph AppPieceHeader, apb AppPieceBody) AppPieceUnit {
 		APH: aph,
 		APB: apb,
 	}
+}
+
+func NewAppPieceUnitEmpty() AppPieceUnit {
+	return AppPieceUnit{}
+}
+
+func (apu *AppPieceUnit) SetAPH(aph AppPieceHeader) {
+	apu.APH = aph
+}
+func (apu *AppPieceUnit) SetAPB(apb AppPieceBody) {
+	apu.APB = apb
 }

@@ -3,13 +3,25 @@ package application
 import (
 	grpc "postParser/internal/adapters/driven/grpc"
 	"postParser/internal/core"
+	"postParser/internal/logger"
 	"postParser/internal/repo"
+	"sync"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 type AppService struct {
 	chanIn  chan repo.AppFeederUnit
 	chanOut chan repo.AppDistributorUnit
+	mp      map[PieceKey][]repo.AppPieceUnit
+	mpLock  sync.Mutex
+}
+
+type PieceKey struct {
+	TS   string
+	Part int
+	B    bool
 }
 
 func NewBlockInfo() *repo.BlockInfo {
@@ -72,32 +84,32 @@ func (a *App) Work() {
 
 	for afu := range a.A.chanIn {
 
-		//logger.L.Infof("in application.Work working with %v\n", afu)
+		//Slicing feederUnit bytes chunk corrsesponding to boundary appearance
+		b, m, e := a.C.Slicer(afu)
 
-		a.C.ParseEnd(afu)
-		a.C.ParseBegin(afu)
+		if !cmp.Equal(b, repo.AppPieceUnit{}) { // Beginning piece is empty only in zero part, leaving it
+			go a.HandleBegin(b, afu.R.H.Voc)
+		}
 
-		//logger.L.Infof("in applicatiom.Work made header %v\n", afu.H)
+		if len(m) > 0 {
+			for _, v := range m {
+				go a.HandleMiddle(v, afu.R.H.Voc)
+			}
+		}
 
-		//	ao := newAppDistributorUnit(afu)
-
-		//logger.L.Infof("work done. Made %v\n with part %d\n", ao.H, afu.R.H.Part)
-
-		//	a.toChanOut(ao)
+		if !cmp.Equal(e, repo.AppPieceUnit{}) { // Ending piece is empty only after last boundary, leaving it
+			go a.HandleEnd(e, afu.R.H.Voc)
+		}
 	}
 
 }
 
 func (a *App) AddToFeeder(in repo.ReceiverUnit) {
 
-	h := repo.NewAppFeederHeader(&repo.SepHeader{}, &repo.SepBody{}, in.H.Part)
-
-	A := newAppFeederUnit(h, in)
-
-	//logger.L.Infof("in application.AddToHeader receive header is %v\n", A.R.H)
+	A := repo.NewAppFeederUnit(in)
 
 	if (in.S == repo.ReceiverSignal{}) {
-		//	logger.L.Infof("in application.AddToFeeder sending afu with header %v with sepHeader %v\n", A.H, A.H.SepHeader)
+
 		a.A.chanIn <- A
 	}
 
@@ -111,26 +123,26 @@ func (a *App) Send() {
 		a.T.Transmit(adu)
 	}
 }
-
-func newAppFeederUnit(h *repo.AppFeederHeader, u repo.ReceiverUnit) repo.AppFeederUnit {
-	return repo.AppFeederUnit{
-		H: h,
-		R: u,
+func (a *App) HandleBegin(apu repo.AppPieceUnit, voc repo.Vocabulaty) {
+	lines, err := a.C.ParseBegin(apu, voc)
+	if err != nil {
+		logger.L.Errorf("in application.HandleBegin error: %v\n", err)
 	}
+	logger.L.Infof("in application.HandleBegin lines: %q\n", lines)
 }
 
-func newAppHeader() *repo.AppFeederHeader {
-	return &repo.AppFeederHeader{}
-}
-
-/*
-func newAppDistributorUnit(afu repo.AppFeederUnit) repo.AppDistributorUnit {
-	return repo.AppDistributorUnit{
-		B: repo.DistributorBody(afu.R.B),
-		H: repo.DistributorHeader{
-			Name: "Mashka",
-			TS:   afu.R.H.TS,
-		},
+func (a *App) HandleMiddle(apu repo.AppPieceUnit, voc repo.Vocabulaty) {
+	lines, err := a.C.ParseMiddle(apu, voc)
+	if err != nil {
+		logger.L.Errorf("in application.HandleMiddle error: %v\n", err)
 	}
+	logger.L.Infof("in application.HandleMiddle lines: %q\n", lines)
 }
-*/
+
+func (a *App) HandleEnd(apu repo.AppPieceUnit, voc repo.Vocabulaty) {
+	lines, err := a.C.ParseEnd(apu, voc)
+	if err != nil {
+		logger.L.Errorf("in application.HandleEnd error: %v\n", err)
+	}
+	logger.L.Infof("in application.HandleEnd lines: %q\n", lines)
+}

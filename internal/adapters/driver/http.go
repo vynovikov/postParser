@@ -67,8 +67,8 @@ func (r *Receiver) Handle(conn net.Conn) {
 		if err != nil {
 			if err == io.EOF {
 
-				logger.L.Info("reading EOF sending EOF")
-				logger.L.Infof("ReceiverUnit gonna be %v\n", ru)
+				//logger.L.Info("reading EOF sending EOF")
+				//logger.L.Infof("ReceiverUnit gonna be %v\n", ru)
 
 				s := repo.NewReceiverSignal("EOF")
 
@@ -81,8 +81,8 @@ func (r *Receiver) Handle(conn net.Conn) {
 			logger.L.Error(err)
 		}
 
-		//	logger.L.Infof("Receiver.Handle made header: %v\n", h)
-		logger.L.Infof("Receiver.Handle has body:\n%q\n", string(b.B))
+		//logger.L.Infof("Receiver.Handle made header: %v\n", h)
+		//logger.L.Infof("Receiver.Handle has body:\n%q\n", string(b.B))
 
 		r.a.AddToFeeder(repo.NewReceiverUnit(h, b, repo.ReceiverSignal{}))
 
