@@ -42,7 +42,7 @@ func (r *Receiver) Handle(conn net.Conn) {
 	r.Respond(conn)
 
 	bufReader := bufio.NewReader(conn)
-	header, err := bufReader.Peek(384)
+	header, err := bufReader.Peek(512)
 	if err != nil {
 		logger.L.Info(err)
 	}
@@ -78,11 +78,12 @@ func (r *Receiver) Handle(conn net.Conn) {
 
 				break
 			}
-			logger.L.Error(err)
+			logger.L.Errorf("in driver.Handle error: %v\n", err)
+			break
 		}
 
 		//logger.L.Infof("Receiver.Handle made header: %v\n", h)
-		//logger.L.Infof("Receiver.Handle has body:\n%q\n", string(b.B))
+		logger.L.Infof("Receiver.Handle has body:\n%q\n", string(b.B))
 
 		r.a.AddToFeeder(repo.NewReceiverUnit(h, b, repo.ReceiverSignal{}))
 

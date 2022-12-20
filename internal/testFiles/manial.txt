@@ -1,0 +1,28 @@
+1. curl -X POST -F 'claire=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\probability\file1.txt' http://localhost:3000
+2. curl -X POST -F 'claire=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\probability\fake_boundary.txt' http://localhost:3000
+3. curl -X POST -F 'alice=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\probability\file1.txt' -F 'bob=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\\probability\file2.txt' http://localhost:3000
+4. curl -X POST -F 'alice=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\long.txt' http://localhost:3000
+5. 
+	unary
+	a) curl -X POST -F 'alice=azaza' http://localhost:3000 - done
+	b) curl -X POST -F 'alice=azaza' -F 'bob=bzbzbz' http://localhost:3000 - done
+	c) curl -X POST -F 'alice=azaza' -F 'bob=bzbzbz' -F 'claire=czczcz' http://localhost:3000 - done
+	c1) curl -X POST -F 'alice=azaza' -F 'bob=bzbzbz' -F 'claire=czczcz' -F 'david=dzdzcd' -F 'erin=ezezez'  -F 'frank=fzfzfz'  -F 'grace=gzgzgz' http://localhost:3000 - done
+	d) curl -X POST -F 'alice=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\short.txt' http://localhost:3000 - done
+	e) curl -X POST -F 'alice=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\short.txt' -F 'bob=bzbzbz' -F 'claire=czczcz' http://localhost:3000 - done
+	stream
+	f) curl -X POST -F 'madelyn=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\md_digits.txt' http://localhost:3000 - done
+	stream+unary
+	g) curl -X POST -F 'madelyn=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\md_digits.txt' -F 'alice=azaza' http://localhost:3000 - done
+	h) curl -X POST -F 'madelyn=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\md_digits.txt' -F 'alice=azaza' -F 'bob=bzbzbz' http://localhost:3000 - done
+	i) curl -X POST -F 'alice=azaza' -F 'madelyn=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\md_digits.txt' -F 'bob=bzbzbz' http://localhost:3000 - done
+	2 and more files
+	i1) curl -X POST -F 'alice=azaza' -F 'mel=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\md_digits.txt' -F 'bob=bzbzbz' -F 'madelyn=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\md_letters.txt' http://localhost:3000 - done
+	i2) curl -X POST -F 'alice=azaza' -F 'mel=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\md_digits.txt' -F 'madelyn=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\md_letters.txt' -F 'bob=bzbzbz' http://localhost:3000 - done
+	large stream
+	j) curl -X POST -F 'alice=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\long.txt' http://localhost:3000 -  done
+	probability
+	k) curl -X POST -F 'claire=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\probability\file1.txt' http://localhost:3000 - done
+	l) curl -X POST -F 'claire=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\probability\fake_boundary.txt' http://localhost:3000 - done
+	test file1+file2
+	m) curl -X POST -F 'alice=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\probability\file1.txt' -F 'bob=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\\probability\file2.txt' http://localhost:3000 - done

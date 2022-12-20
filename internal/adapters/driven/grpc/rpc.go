@@ -2,12 +2,11 @@ package grpc
 
 import (
 	"context"
-	"io"
-	"math/rand"
-	"postParser/internal/adapters/driven/grpc/pb"
+	"fmt"
+	pb "postParser/internal/adapters/driven/grpc/pb"
 	"postParser/internal/logger"
 	"postParser/internal/repo"
-	"time"
+	"sort"
 
 	errs "github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -21,83 +20,373 @@ var (
 )
 
 type Transmitter interface {
-	Transmit(repo.AppDistributorUnit)
+	Transmit([]repo.AppDistributorUnit)
 }
 
-type TransmitAdapter struct{}
+type TransmitAdapter struct {
+	c      pb.PostParserClient
+	M      map[repo.StreamKey]pb.PostParser_MultiPartClient // stream map
+	LastSK repo.StreamKey
+	CurSK  repo.StreamKey
+	CurReq *pb.FileUploadReq
+}
 
 func NewTransmitter() Transmitter {
-	return &TransmitAdapter{}
-}
-func (t *TransmitAdapter) Transmit(adu repo.AppDistributorUnit) {
-	//connectString := os.Getenv("HOST") + ":" + os.Getenv("PORT")
 	connectString := "localhost:3100"
 	conn, err := grpc.Dial(connectString, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		logger.L.Error(errs.Wrap(err, "rpc.Transmit.grpc.dial"))
 	}
-
 	client := pb.NewPostParserClient(conn)
 
-	err = doTransmit(client, conn, adu)
-	if err != nil {
-		logger.L.Error(errs.Wrap(err, "rpc.Transmit.grpc.doTransmit"))
+	return &TransmitAdapter{
+		c: client,
+		M: make(map[repo.StreamKey]pb.PostParser_MultiPartClient),
+	}
+}
+func (t *TransmitAdapter) Transmit(adu []repo.AppDistributorUnit) {
+	//connectString := os.Getenv("HOST") + ":" + os.Getenv("PORT")
+
+	for _, v := range adu {
+		switch v.H.T {
+		case repo.Unary:
+			errs := t.transmitUnary(t.c, v)
+
+			for _, rng := range errs {
+				logger.L.Errorf("in grpc.Transmit err: %v\n", rng)
+			}
+
+		case repo.ClientStream:
+
+			errs := t.transmitStream(t.c, v)
+			for _, rng := range errs {
+				logger.L.Errorf("in grpc.Transmit err: %v\n", rng)
+			}
+
+		}
 	}
 }
 
-func doTransmit(c pb.PostParserClient, conn *grpc.ClientConn, adu repo.AppDistributorUnit) error {
+// update proto msg to use last flag
+func (t *TransmitAdapter) transmitUnary(c pb.PostParserClient, aduOne repo.AppDistributorUnit) []error {
+	errs, streamKyes := make([]error, 0), make([]repo.StreamKey, 0)
+	req := t.NewReqUnary(aduOne)
 
-	if Stream == nil {
-		logger.L.Info("no stream yet, creating one ")
-		req = &pb.FileUploadReq{
-			Info: &pb.FileUploadReq_FileInfo{
-				FileInfo: &pb.FileInfo{
-					FileName: adu.H.FormName,
-					FileType: "zxc",
-					StreamID: uint32(rand.Intn(50)),
-				},
-			},
-		}
+	logger.L.Infof("in grpc.transmitUnary for aduOne header %v, body %q, made req: %v\n", aduOne.H, aduOne.B.B, req)
 
-		Stream, err = c.MultiPart(context.Background())
-		if err != nil {
-			return errs.Wrap(err, "Creating stream")
-		}
-		logger.L.Infof("in rpc.doTransmit stream created %v:%#v", Stream, Stream)
+	if aduOne.H.U.M.PostAction == repo.Finish {
+		streamKyes, errs = t.Register(aduOne.H)
 
-		err = Stream.Send(req)
-		if err != nil {
-			return err
-		}
-	}
+		for _, v := range streamKyes {
 
-	if adu.B.B == nil {
-		logger.L.Info("in rpc.doTransmit closing and getting results from stream ", Stream)
-		res, err := Stream.CloseAndRecv()
-		if err != nil {
-			if err == io.EOF {
-				return nil
+			_, err := t.M[v].CloseAndRecv()
+
+			if err != nil {
+				errs = append(errs, err)
 			}
-			return err
+
+			delete(t.M, v)
+
+		}
+	}
+
+	_, err := c.SinglePart(context.Background(), req)
+
+	if err != nil {
+		errs = append(errs, err)
+	}
+	//logger.L.Infof("in grpc.transmitUnary got res: %v\n", res)
+
+	return errs
+}
+
+// handles stream ADUs, reads ans writes t.M
+func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppDistributorUnit) []error {
+	//logger.L.Warnf("grpc.transmitStream invoked with adu header %v, body %q, message %q, t.M: %v\n", aduOne.H, aduOne.B.B, aduOne.H.S.M, t.M)
+	errs := make([]error, 0)
+	req := t.NewReqStream(aduOne)
+	//techAduHeader := repo.AppDistributorHeader{T: repo.Tech, C: repo.CloseData{D: []repo.StreamKey{}}}
+
+	streamKeyes, errs := t.Register(aduOne.H)
+
+	logger.L.Infof("in grpc.transmitStream for aduOne with header %v and body %q and t.M %v called Register which returned streamKeys and errors:\n", aduOne.H, aduOne.B.B, t.M)
+	logger.L.Warnf("in grpc.transmitStream aduOne.H.S.M.PreAction = %d, aduOne.H.S.M.PostAction = %d\n", aduOne.H.S.M.PreAction, aduOne.H.S.M.PostAction)
+
+	if len(streamKeyes) < 2 {
+		errs = append(errs, fmt.Errorf("in parser.grpc.transmitStream len(streanKeys) < 2: %v", streamKeyes))
+		return errs
+	}
+
+	for i, v := range streamKeyes {
+		logger.L.Infof("in grpc.transmitStream streamKey i = %d, v: %v\n", i, v)
+	}
+
+	for i, v := range errs {
+		logger.L.Infof("in grpc.transmitStream error i = %d, v: %v\n", i, v)
+		if v != nil {
+			errs = append(errs, v)
+		}
+	}
+
+	switch aduOne.H.S.M.PreAction {
+	case repo.None:
+		logger.L.Infof("in grpc.transmitStream in preAction none t.M: %v\n", t.M)
+		stream, ok := t.M[streamKeyes[0]]
+		if !ok {
+			stream, err = t.NewStream(aduOne.H.S.SK.TS, aduOne.H.S.F.FormName, aduOne.H.S.F.FileName)
+			if err != nil {
+				errs = append(errs, err)
+			}
+			t.M[streamKeyes[0]] = stream
+		}
+		logger.L.Infof("in grpc.transmitStream Preaction none req: %v\n", req)
+		err = stream.Send(req)
+
+		if err != nil {
+			errs = append(errs, err)
 		}
 
-		logger.L.Infof("in rpc.doTransmit uploaded file %q with size of %d bytes\n", res.FileName, res.FileSize)
+	case repo.StopLast:
 
-		logger.L.Info("in rpc.doTransmit closing conn")
-		conn.Close()
-		Stream = nil
-		return nil
+		if stream, ok := t.M[streamKeyes[0]]; ok {
+			if aduOne.H.S.M.PostAction == repo.Finish {
+				err := stream.Send(req)
+				if err != nil {
+					errs = append(errs, err)
+				}
+			}
+			_, err = stream.CloseAndRecv()
+			if err != nil {
+				errs = append(errs, err)
+			}
+			delete(t.M, streamKeyes[0])
+		}
+
 	}
-	time.Sleep(time.Millisecond * 100)
-	req = &pb.FileUploadReq{
-		Info: &pb.FileUploadReq_FileData{
-			FileData: adu.B.B,
+	logger.L.Warnf("in grpc.transmitStream after PreAction t.M: %v\n", t.M)
+
+	switch aduOne.H.S.M.PostAction {
+	case repo.None:
+
+		stream, ok := t.M[streamKeyes[0]]
+
+		if ok {
+			delete(t.M, streamKeyes[0])
+		} else {
+
+			stream, err = t.NewStream(aduOne.H.S.SK.TS, aduOne.H.S.F.FormName, aduOne.H.S.F.FileName)
+
+			if err != nil {
+				errs = append(errs, err)
+			}
+			logger.L.Infof("in grpc.transmitStream PostAction none req: %v\n", req)
+			err = stream.Send(req)
+
+			if err != nil {
+				errs = append(errs, err)
+			}
+		}
+
+		t.M[streamKeyes[1]] = stream
+
+		logger.L.Infof("in grpc.transmitStream after PostAction t.M: %v\n", t.M)
+
+	case repo.Stop:
+
+		if stream, ok := t.M[streamKeyes[0]]; ok {
+			_, err := stream.CloseAndRecv()
+			if err != nil {
+				errs = append(errs, err)
+			}
+			delete(t.M, streamKeyes[0])
+
+		}
+
+	case repo.Finish:
+		for i := range t.M {
+			if i.TS == aduOne.H.S.SK.TS {
+
+				_, err := t.M[i].CloseAndRecv()
+
+				if err != nil {
+					errs = append(errs, err)
+				}
+				delete(t.M, i)
+			}
+		}
+	}
+
+	logger.L.Infof("in grpc.transmitStream after handling t.M: %v\n", t.M)
+
+	return errs
+
+}
+
+// Returns stream keys for handling ADUs based on ADU header, doesn't edit t.M
+func (t *TransmitAdapter) Register(aduHeader repo.AppDistributorHeader) ([]repo.StreamKey, []error) {
+	streamsPost, streamsPre, errs := make([]repo.StreamKey, 0), make([]repo.StreamKey, 0), make([]error, 0)
+	//logger.L.Infof("rpc.Register invoked with aduHeader = %v, t.M = %v\n", aduHeader, t.M)
+
+	switch aduHeader.T {
+	case repo.Tech: // non-transmition handling
+		if len(aduHeader.C.D) > 0 { //
+			//logger.L.Infof("in rpc.Register before deleting t.M : %v\n", t.M)
+			for _, v := range aduHeader.C.D {
+				//logger.L.Infof("in rpc.Register trying to delete key : %v\n", v)
+				delete(t.M, v)
+			}
+			//logger.L.Infof("in rpc.Register after deleting t.M : %v\n", t.M)
+		}
+
+	case repo.Unary: // unary transmition
+		if aduHeader.U.M.PreAction == repo.StopLast { // unary transmition should close previous stream
+			//logger.L.Infof("in rpc.Register M =%v\n", t.M)
+
+			SK := repo.StreamKey{TS: aduHeader.U.C.TS, Part: aduHeader.U.C.Part - 1}
+			if _, ok := t.M[SK]; ok {
+				delete(t.M, SK)
+			} else {
+				errs = append(errs, fmt.Errorf("in parser.Rpc.Register stream \"%v\" not found", SK))
+			}
+			// Stream to be closed is absent in map
+		}
+		if aduHeader.U.M.PostAction == repo.Finish { // unary transmition should clear all records of same TS in map and close corresponding streams
+			//logger.L.Infof("in rpc.Register case = Finish\n")
+
+			for i := range t.M {
+				//logger.L.Infof("in rpc.Register i = %v\n", i)
+				if i.TS == aduHeader.U.C.TS {
+					//logger.L.Infof("in rpc.Register t.M index = %v\n", i)
+					streamsPre = append(streamsPre, i)
+				}
+			}
+
+			for i := range streamsPre {
+
+				old := t.M[streamsPre[i]]
+				delete(t.M, streamsPre[i])
+				//	streamsPre[i].Remove = true
+				//logger.L.Infof("in rpc.Register deleteKey index = %d, value = %v\n", i, deleteKeys[i])
+				t.M[streamsPre[i]] = old
+			}
+
+		}
+
+	default: // stream transmition
+
+		SKCur := repo.StreamKey{TS: aduHeader.S.SK.TS, Part: aduHeader.S.SK.Part}
+		SKPrev := SKCur
+		SKPost := SKCur
+		if aduHeader.S.SK.Part > 0 {
+			SKPrev.Part--
+		}
+		SKPost.Part++
+		//difference betwee none and stopLast
+
+		if aduHeader.S.M.PreAction == repo.None {
+			//logger.L.Infof("in rpc.Register Preaction == none case t.M : %v, SKPrev: %v,  SKCur: %v\n", t.M, SKPrev, SKCur)
+
+			streamsPre = append(streamsPre, SKCur)
+			//logger.L.Infof("in grpc.Register none preaction %v added to streamsPre\n", SKCur)
+		}
+
+		if aduHeader.S.M.PreAction == repo.StopLast { // last strem should be closed and current data chunk should be added to new stream
+			//logger.L.Infof("in rpc.Register stopLast case t.M : %v, SKCur: %v\n", t.M, SKCur)
+			if _, ok := t.M[SKCur]; ok {
+				streamsPre = append(streamsPre, SKCur)
+				//logger.L.Infof("in rpc.Register %v added to streamsPre\n", SKCur)
+
+			}
+		}
+		if aduHeader.S.M.PostAction == repo.None {
+			//logger.L.Infof("in rpc.Register none case t.M : %v, SKPrev:%v,  SKCur: %v, SKPost: %v\n", t.M, SKPrev, SKCur, SKPost)
+
+			streamsPost = append(streamsPost, SKPost)
+		}
+		if aduHeader.S.M.PostAction == repo.Stop {
+
+			//logger.L.Infof("in rpc.Register repo.Stop case SKCur = %v\n", SKCur)
+
+			streamsPost = append(streamsPost, SKCur)
+
+		}
+		if aduHeader.S.M.PostAction == repo.Finish {
+
+			for i := range t.M {
+				if i.TS == aduHeader.S.SK.TS {
+					streamsPost = append(streamsPost, i)
+				}
+			}
+		}
+
+	}
+	sort.SliceStable(streamsPre, func(i, j int) bool { return streamsPre[i].Part < streamsPre[j].Part })
+	streamsPost = append(streamsPre, streamsPost...)
+
+	return streamsPost, errs
+
+}
+
+func (t *TransmitAdapter) NewStream(ts, fo, fi string) (pb.PostParser_MultiPartClient, error) {
+	reqInit := &pb.FileUploadReq{
+		Info: &pb.FileUploadReq_FileInfo{
+			FileInfo: &pb.FileInfo{
+				Ts:        ts,
+				FieldName: fo,
+				FileName:  fi,
+			},
 		},
 	}
-	logger.L.Infof("in rpc.doTransmit transmitting to existed stream %#v unit %v\n ", Stream, adu.H)
-	err = Stream.Send(req)
+	newStream, err := t.c.MultiPart(context.Background())
 	if err != nil {
-		return errs.Wrap(err, "Stream.Send")
+		return nil, err
 	}
-	return nil
+	//logger.L.Infof("in grpc reqInit %v\n", reqInit)
+	err = newStream.Send(reqInit)
+	if err != nil {
+		return nil, err
+	}
+	return newStream, nil
+}
+
+func (t *TransmitAdapter) NewReqUnary(aduOne repo.AppDistributorUnit) *pb.TextFieldsReq {
+	req := &pb.TextFieldsReq{}
+
+	req.Ts = aduOne.H.U.TS
+	req.Name = aduOne.H.U.F.FormName
+	req.ByteChunk = aduOne.B.B
+
+	if aduOne.H.U.F.FileName != "" {
+		req.Filename = aduOne.H.U.F.FileName
+	}
+
+	if aduOne.H.U.M.PostAction == repo.Finish {
+		req.IsLast = true
+	}
+	return req
+}
+
+func (t *TransmitAdapter) NewReqStream(aduOne repo.AppDistributorUnit) *pb.FileUploadReq {
+
+	FD, I, req := &pb.FileData{}, &pb.FileUploadReq_FileData{}, &pb.FileUploadReq{}
+
+	switch aduOne.H.S.M.PreAction {
+	case repo.None:
+
+		FD.ByteChunk = aduOne.B.B
+	}
+	switch aduOne.H.S.M.PostAction {
+	case repo.None:
+		if aduOne.H.S.M.PreAction == repo.StopLast { //reqquest made and put into new stream
+			FD.ByteChunk = aduOne.B.B
+		}
+	case repo.Finish:
+		FD.ByteChunk = aduOne.B.B
+		FD.IsLast = true
+	}
+
+	I.FileData = FD
+	req.Info = I
+
+	return req
 }

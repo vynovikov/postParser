@@ -5,8 +5,11 @@ package rpc;
 option go_package = "./pb";
 
 message TextFieldsReq {
-    string fieldName = 1;
-    bytes fieldValue = 2;
+    string ts = 1;
+    string name = 2;
+    string filename = 3;
+    bytes byteChunk = 4;
+    bool isLast = 5;
 }
 
 message TextFieldRes {
@@ -14,19 +17,26 @@ message TextFieldRes {
 }
 
 message FileInfo{
-    string fileName = 1;
-    string fileType = 2;
-    uint32 streamID = 3;
+    string ts = 1;
+    string fieldName = 2;
+    string fileName = 3;
+    
+}
+
+message FileData{
+    string ts = 1;
+    bytes byteChunk = 2;
+    bool isLast = 3;
 }
 
 message FileUploadReq {
     oneof info {
         FileInfo fileInfo = 1;
-        bytes fileData = 2;
+        FileData fileData = 2;
     }
 }
 
-message FileUploadRes {
+message FileUploadRes {    
     string fileName = 1;
     uint32 fileSize = 2;
 }
