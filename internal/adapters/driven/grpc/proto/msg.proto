@@ -4,15 +4,16 @@ package rpc;
 
 option go_package = "./pb";
 
-message TextFieldsReq {
+message TextFieldReq {
     string ts = 1;
     string name = 2;
     string filename = 3;
     bytes byteChunk = 4;
-    bool isLast = 5;
+    bool isFirst = 5;
+    bool isLast = 6;
 }
 
-message TextFieldRes {
+message TextFieldRes {    
     bool result = 1;
 }
 
@@ -20,6 +21,7 @@ message FileInfo{
     string ts = 1;
     string fieldName = 2;
     string fileName = 3;
+    bool isFirst = 4;
     
 }
 
@@ -27,6 +29,7 @@ message FileData{
     string ts = 1;
     bytes byteChunk = 2;
     bool isLast = 3;
+    
 }
 
 message FileUploadReq {

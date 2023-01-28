@@ -112,7 +112,7 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz" + "\r"),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: Probably}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: Probably}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
 			wantedM: nil,
 			wantedE: AppSub{ASH: AppSubHeader{}, ASB: AppSubBody{B: []byte("\r")}},
 		},
@@ -122,7 +122,7 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz" + "\r\n"),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: Probably}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: Probably}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
 			wantedM: nil,
 			wantedE: AppSub{ASH: AppSubHeader{}, ASB: AppSubBody{B: []byte("\r\n")}},
 		},
@@ -132,7 +132,7 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz"),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: True}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: True}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
 			wantedM: nil,
 			wantedE: AppSub{},
 		},
@@ -142,7 +142,7 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz" + Sep + "bPrefixbRo"),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: Probably}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: Probably}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
 			wantedM: nil,
 			wantedE: AppSub{ASB: AppSubBody{B: []byte("\r\nbPrefixbRo")}},
 		},
@@ -152,7 +152,7 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz" + Sep + "bPrefixbRootbSuffix" + Sep),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: Last}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: False}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
 			wantedM: nil,
 			wantedE: AppSub{},
 		},
@@ -162,9 +162,9 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "bPrefix" + "bRoot" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz"),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: False}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: False}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza")}},
 			wantedM: []AppPieceUnit{
-				{APH: AppPieceHeader{B: false, E: True}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+				{APH: AppPieceHeader{B: False, E: True}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
 			},
 			wantedE: AppSub{},
 		},
@@ -174,9 +174,9 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "bPrefix" + "bRoot" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz" + Sep + "bPrefixbRo"),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: False}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: False}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza")}},
 			wantedM: []AppPieceUnit{
-				{APH: AppPieceHeader{B: false, E: Probably}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+				{APH: AppPieceHeader{B: False, E: Probably}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
 			},
 			wantedE: AppSub{ASB: AppSubBody{B: []byte("\r\nbPrefixbRo")}},
 		},
@@ -185,9 +185,9 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza" + Sep + "bPrefix" + "bRoot" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz" + "\r"),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: False}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: False}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazaza")}},
 			wantedM: []AppPieceUnit{
-				{APH: AppPieceHeader{B: false, E: Probably}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+				{APH: AppPieceHeader{B: False, E: Probably}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
 			},
 			wantedE: AppSub{ASB: AppSubBody{B: []byte("\r")}},
 		},
@@ -197,7 +197,7 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazazabzbzbzbzbzbzbzbzbzbzbzbzbzbzbzb" + Sep + "bPrefix" + "bRoot" + "bSuffix" + Sep),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: Last}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazazabzbzbzbzbzbzbzbzbzbzbzbzbzbzbzb")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: False}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazazabzbzbzbzbzbzbzbzbzbzbzbzbzbzbzb")}},
 			wantedM: nil,
 			wantedE: AppSub{},
 		},
@@ -207,9 +207,9 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazazabzbzbzbzbzbzbzbzbzbzbzbzbzbzbzb" + Sep + "bPrefix" + "bRoot" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz" + Sep + "bPrefix" + "bRoot" + "bSuffix" + Sep),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: False}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazazabzbzbzbzbzbzbzbzbzbzbzbzbzbzbzb")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: False}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazazabzbzbzbzbzbzbzbzbzbzbzbzbzbzbzb")}},
 			wantedM: []AppPieceUnit{
-				{APH: AppPieceHeader{B: false, E: Last}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+				{APH: AppPieceHeader{B: False, E: False}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
 			},
 			wantedE: AppSub{},
 		},
@@ -218,9 +218,9 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazazabzbzbzbzbzbzbzbzbzbzbzbzbzbzbzb" + Sep + "bPrefix" + "bRoot" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz" + Sep + "bPrefixbRoot"),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: False}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazazabzbzbzbzbzbzbzbzbzbzbzbzbzbzbzb")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: False}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazazabzbzbzbzbzbzbzbzbzbzbzbzbzbzbzb")}},
 			wantedM: []AppPieceUnit{
-				{APH: AppPieceHeader{B: false, E: Probably}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+				{APH: AppPieceHeader{B: False, E: Probably}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
 			},
 			wantedE: AppSub{ASB: AppSubBody{B: []byte("\r\nbPrefixbRoot")}},
 		},
@@ -230,9 +230,9 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazazabzbzbzbzbzbzbzbzbzbzbzbzbzbzbzb" + Sep + "bPrefix" + "bRoot" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz" + Sep + "bPrefixbRoot" + "\r"),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot"), Suffix: []byte("bSuffix")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: False}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazazabzbzbzbzbzbzbzbzbzbzbzbzbzbzbzb")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: False}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazazabzbzbzbzbzbzbzbzbzbzbzbzbzbzbzb")}},
 			wantedM: []AppPieceUnit{
-				{APH: AppPieceHeader{B: false, E: Probably}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+				{APH: AppPieceHeader{B: False, E: Probably}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
 			},
 			wantedE: AppSub{ASB: AppSubBody{B: []byte("\r\nbPrefixbRoot\r")}},
 		},
@@ -242,9 +242,9 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazazabzbzbzbzbzbzbzbzbzbzbzbzbzbzbzb" + Sep + "bPrefix" + "bRoot" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz" + Sep + "bPrefix" + "bRoot" + "bSu"),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: False}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazazabzbzbzbzbzbzbzbzbzbzbzbzbzbzbzb")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: False}, APB: AppPieceBody{B: []byte("a1234567890azazazazazazazazazazazazazazazazazazazazazazazazazazabzbzbzbzbzbzbzbzbzbzbzbzbzbzbzb")}},
 			wantedM: []AppPieceUnit{
-				{APH: AppPieceHeader{B: false, E: Probably}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+				{APH: AppPieceHeader{B: False, E: Probably}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
 			},
 			wantedE: AppSub{ASB: AppSubBody{B: []byte("\r\nbPrefixbRootbSu")}},
 		},
@@ -254,11 +254,11 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("a1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz" + Sep + "bPrefix" + "bRoot" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz" + Sep + "bPrefix" + "bRoot" + Sep + "c1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz" + Sep + "bPrefix" + "bRoot" + Sep + "d1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz"),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: False}, APB: AppPieceBody{B: []byte("a1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: False}, APB: AppPieceBody{B: []byte("a1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
 			wantedM: []AppPieceUnit{
-				{APH: AppPieceHeader{B: false, E: False}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
-				{APH: AppPieceHeader{B: false, E: False}, APB: AppPieceBody{B: []byte("c1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
-				{APH: AppPieceHeader{B: false, E: True}, APB: AppPieceBody{B: []byte("d1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+				{APH: AppPieceHeader{B: False, E: False}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+				{APH: AppPieceHeader{B: False, E: False}, APB: AppPieceBody{B: []byte("c1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+				{APH: AppPieceHeader{B: False, E: True}, APB: AppPieceBody{B: []byte("d1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
 			},
 			wantedE: AppSub{},
 		},
@@ -268,7 +268,7 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("a1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz" + Sep + "bPrefix" + "bRoot" + "bSuf"),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: Probably}, APB: AppPieceBody{B: []byte("a1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: Probably}, APB: AppPieceBody{B: []byte("a1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
 			wantedM: nil,
 			wantedE: AppSub{ASB: AppSubBody{B: []byte("\r\nbPrefixbRootbSuf")}},
 		},
@@ -278,9 +278,9 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("a1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz" + Sep + "bPrefix" + "bRoot" + Sep + "b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz" + Sep + "bPrefix" + "bRoot" + "bSuf"),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: False}, APB: AppPieceBody{B: []byte("a1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: False}, APB: AppPieceBody{B: []byte("a1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
 			wantedM: []AppPieceUnit{
-				{APH: AppPieceHeader{B: false, E: Probably}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
+				{APH: AppPieceHeader{B: False, E: Probably}, APB: AppPieceBody{B: []byte("b1234567890bzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbzbz")}},
 			},
 			wantedE: AppSub{ASB: AppSubBody{B: []byte("\r\nbPrefixbRootbSuf")}},
 		},
@@ -290,7 +290,7 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("uffix" + Sep),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot\r\n")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: Last}, APB: AppPieceBody{B: []byte("uffix\r\n")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: False}, APB: AppPieceBody{B: []byte("uffix\r\n")}},
 			wantedM: nil,
 			wantedE: AppSub{},
 		},
@@ -300,7 +300,7 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("ootbSuffix" + Sep),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: Last}, APB: AppPieceBody{B: []byte("ootbSuffix\r\n")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: False}, APB: AppPieceBody{B: []byte("ootbSuffix\r\n")}},
 			wantedM: nil,
 			wantedE: AppSub{},
 		},
@@ -310,7 +310,7 @@ func (s *byteOpsSuite) TestSlicer() {
 			bs:   []byte("77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777\r\n888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888\r\n999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999\r\n3\r\n000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\r\n111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111\r\n222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222\r\n333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333\r\n444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444\r\n555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555\r\n666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666\r\n777777777777777777777"),
 			bou:  Boundary{Prefix: []byte("--"), Root: []byte("------------------------3530180a0a96f2b6")},
 
-			wantedB: AppPieceUnit{APH: AppPieceHeader{B: true, E: True}, APB: AppPieceBody{B: []byte("77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777\r\n888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888\r\n999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999\r\n3\r\n000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\r\n111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111\r\n222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222\r\n333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333\r\n444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444\r\n555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555\r\n666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666\r\n777777777777777777777")}},
+			wantedB: AppPieceUnit{APH: AppPieceHeader{B: True, E: True}, APB: AppPieceBody{B: []byte("77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777\r\n888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888\r\n999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999\r\n3\r\n000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\r\n111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111\r\n222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222\r\n333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333\r\n444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444\r\n555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555\r\n666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666\r\n777777777777777777777")}},
 			wantedM: nil,
 			wantedE: AppSub{},
 		},
@@ -336,7 +336,7 @@ func (s *byteOpsSuite) TestSlicer() {
 }
 
 func (s *byteOpsSuite) TestSliceParser() {
-	piece1 := AppPieceUnit{APH: AppPieceHeader{B: false, E: True}, APB: AppPieceBody{B: []byte("bPrefix" + "bRo")}}
+	piece1 := AppPieceUnit{APH: AppPieceHeader{B: False, E: True}, APB: AppPieceBody{B: []byte("bPrefix" + "bRo")}}
 	/*
 		piece2 := []AppPieceUnit{
 			{APH: AppPieceHeader{B: false, E: false}, APB: AppPieceBody{B: []byte("bPrefix" + "bRoot" + Sep + "b12345")}},
@@ -796,53 +796,54 @@ func (s *byteOpsSuite) TestGetLinesLeft() {
 	}
 }
 
-func (s *byteOpsSuite) TestGetCurrentLineRight() {
-	tt := []struct {
-		name      string
-		bs        []byte
-		fromIndex int
-		limit     int
-		wantLine  []byte
-		wantError error
-	}{
-		{
-			name:      "happy",
-			bs:        []byte("aaaaaaaaaaa\r"),
-			fromIndex: 0,
-			limit:     MaxLineLimit,
-			wantLine:  []byte("aaaaaaaaaaa"),
-			wantError: nil,
-		},
+/*
+	func (s *byteOpsSuite) TestGetCurrentLineRight() {
+		tt := []struct {
+			name      string
+			bs        []byte
+			fromIndex int
+			limit     int
+			wantLine  []byte
+			wantError error
+		}{
+			{
+				name:      "happy",
+				bs:        []byte("aaaaaaaaaaa\r"),
+				fromIndex: 0,
+				limit:     MaxLineLimit,
+				wantLine:  []byte("aaaaaaaaaaa"),
+				wantError: nil,
+			},
 
-		{
-			name:      "happy short limit",
-			bs:        []byte("aaaaaaaaaaa\r"),
-			fromIndex: 0,
-			limit:     5,
-			wantLine:  []byte("aaaaa"),
-			wantError: errors.New("line limit exceeded. No separator met"),
-		},
+			{
+				name:      "happy short limit",
+				bs:        []byte("aaaaaaaaaaa\r"),
+				fromIndex: 0,
+				limit:     5,
+				wantLine:  []byte("aaaaa"),
+				wantError: errors.New("line limit exceeded. No separator met"),
+			},
 
-		{
-			name:      "ubhappy EOF met",
-			bs:        []byte("aaaaaaa"),
-			fromIndex: 0,
-			limit:     MaxLineLimit,
-			wantLine:  []byte("aaaaaaa"),
-			wantError: errors.New("body end reached. No separator met"),
-		},
+			{
+				name:      "ubhappy EOF met",
+				bs:        []byte("aaaaaaa"),
+				fromIndex: 0,
+				limit:     MaxLineLimit,
+				wantLine:  []byte("aaaaaaa"),
+				wantError: errors.New("body end reached. No separator met"),
+			},
+		}
+		for _, v := range tt {
+			s.Run(v.name, func() {
+				line, err := GetCurrentLineRight(v.bs, v.fromIndex, v.limit)
+				if err != nil {
+					s.Equal(v.wantError, err)
+				}
+				s.Equal(v.wantLine, line)
+			})
+		}
 	}
-	for _, v := range tt {
-		s.Run(v.name, func() {
-			line, err := GetCurrentLineRight(v.bs, v.fromIndex, v.limit)
-			if err != nil {
-				s.Equal(v.wantError, err)
-			}
-			s.Equal(v.wantLine, line)
-		})
-	}
-}
-
+*/
 func (s *byteOpsSuite) TestGetLinesRightMiddle() {
 	tt := []struct {
 		name      string
@@ -1839,7 +1840,7 @@ func (s *byteOpsSuite) TestGetHeaderLines() {
 			name:        "1 CRLF last boundary",
 			bs:          []byte("azzsdfgsdhfdsfhsjdfhs\r\n"),
 			wantedL:     []byte("azzsdfgsdhfdsfhsjdfhs\r\n"),
-			wantedError: errors.New("in repo.GetHeaderLines header \"azzsdfgsdhfdsfhsjdfhs\r\n\" is ending part"),
+			wantedError: errors.New("in repo.GetHeaderLines header \"azzsdfgsdhfdsfhsjdfhs\r\n\" is the last"),
 		},
 
 		{
@@ -1909,7 +1910,7 @@ func (s *byteOpsSuite) TestGetHeaderLines() {
 			name:        "3 CRLF 2 header lines (CD insufficient), 1 random line",
 			bs:          []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\ndsfguigdfa"),
 			wantedL:     []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-			wantedError: errors.New("in repo.GetHeaderLines header \"Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n\" is ending part"),
+			wantedError: nil,
 		},
 
 		{
@@ -1962,17 +1963,17 @@ func (s *byteOpsSuite) TestGetHeaderLines() {
 		},
 
 		{
-			name:        "4 CRLF 1 line CD sufficient + 2 random lines",
-			bs:          []byte("Content-Disposition: form-data; name=\"alice\"\r\n\r\nhdsghdsvhsdvgshdgvsdv\r\nhjgvfjhdgvjhfdkgftv87dfvdfv"),
+			name:        "4 CRLF 1 line CD sufficient + 3 random lines",
+			bs:          []byte("Content-Disposition: form-data; name=\"alice\"\r\n\r\nhdsghdsvhsdvgshdgvsdv\r\nhjgvfjhdgvjhfdkgftv87dfvdfv\r\nsoiehfwoefhwefdgvjhsdv"),
 			wantedL:     []byte("Content-Disposition: form-data; name=\"alice\"\r\n\r\n"),
 			wantedError: errors.New("in repo.GetHeaderLines header \"Content-Disposition: form-data; name=\"alice\"\r\n\r\n\" is ending part"),
 		},
 
 		{
-			name:        "4 CRLF 1 line CD insufficient + 1 random line",
+			name:        "4 CRLF 1 line CD insufficient + 2 random line",
 			bs:          []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nhdsghdsvhsdvgshdgvsdv\r\nhjgvfjhdgvjhfdkgftv87dfvdfv"),
 			wantedL:     []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-			wantedError: errors.New("in repo.GetHeaderLines header \"Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n\" is ending part"),
+			wantedError: nil,
 		},
 
 		{
@@ -2276,6 +2277,29 @@ func (s *byteOpsSuite) TestHasBoundary() {
 	for _, v := range tt {
 		s.Run(v.name, func() {
 			s.Equal(v.want, ContainsBouEnding(v.bs, v.bou))
+		})
+	}
+}
+
+func (s *byteOpsSuite) TestIsBoudary() {
+	tt := []struct {
+		name string
+		b    []byte
+		n    []byte
+		bou  Boundary
+		want bool
+	}{
+		{
+			name: "",
+			b:    []byte("\r\n"),
+			n:    []byte("bPrefixbRoot\r\nContent-Disposition"),
+			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
+			want: true,
+		},
+	}
+	for _, v := range tt {
+		s.Run(v.name, func() {
+			s.Equal(v.want, IsBoundary(v.b, v.n, v.bou))
 		})
 	}
 }

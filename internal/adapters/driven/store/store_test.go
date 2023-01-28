@@ -26,35 +26,6 @@ func (s *storeSuite) TestRegister() {
 		wantErr   error
 		wantADU   repo.AppDistributorUnit
 	}{
-
-		{
-			name: "!B, E()=repo.True, askg not met  => creting ASKG and ADU, 2",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
-			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 0, TS: "qqq", B: false, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazaza")},
-			},
-			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							}}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 0}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-		},
-
 		{
 			name: "B, Part is matched, E() == repo.False => creating ADU, deleting ASKD, 2",
 			store: &StoreStruct{
@@ -62,7 +33,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -72,7 +43,7 @@ func (s *storeSuite) TestRegister() {
 							}}}},
 			},
 			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: true, E: repo.False}, APB: repo.AppPieceBody{B: []byte("azaza")},
+				APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("azaza")},
 			},
 			bou: repo.Boundary{},
 			wantStore: &StoreStruct{
@@ -81,57 +52,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.Stop}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-		},
-
-		{
-			name: "!B => appending ASKD, 2",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							}}}},
-			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: false, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain\r\n\r\nazaza")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							}},
-						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "bob",
-									FileName: "long.txt",
-								},
-								E: repo.True,
-							}},
-					}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "bob", FileName: "long.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Close}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -141,7 +62,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nConte"),
 								},
@@ -149,7 +70,7 @@ func (s *storeSuite) TestRegister() {
 							}}}},
 			},
 			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("nt-Type: text/plain\r\n\r\nazaza")},
+				APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("nt-Type: text/plain\r\n\r\nazaza")},
 			},
 			bou: repo.Boundary{},
 			wantStore: &StoreStruct{
@@ -157,7 +78,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -168,7 +89,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -178,7 +99,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\n"),
 								},
@@ -186,7 +107,7 @@ func (s *storeSuite) TestRegister() {
 							}}}},
 			},
 			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Type: text/plain\r\n\r\nazaza")},
+				APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Type: text/plain\r\n\r\nazaza")},
 			},
 			bou: repo.Boundary{},
 			wantStore: &StoreStruct{
@@ -194,7 +115,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -205,7 +126,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -215,7 +136,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\""),
 								},
@@ -223,7 +144,7 @@ func (s *storeSuite) TestRegister() {
 							}}}},
 			},
 			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("\r\nContent-Type: text/plain\r\n\r\nazaza")},
+				APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("\r\nContent-Type: text/plain\r\n\r\nazaza")},
 			},
 			bou: repo.Boundary{},
 			wantStore: &StoreStruct{
@@ -231,7 +152,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -242,7 +163,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -252,7 +173,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain"),
 									FormName: "alice",
@@ -262,7 +183,7 @@ func (s *storeSuite) TestRegister() {
 							}}}},
 			},
 			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")},
+				APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")},
 			},
 			bou: repo.Boundary{},
 			wantStore: &StoreStruct{
@@ -270,7 +191,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 6}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain"),
 									FormName: "alice",
@@ -281,7 +202,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, U: repo.UnaryData{}, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, U: repo.UnaryData{}, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -291,7 +212,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n"),
 									FormName: "alice",
@@ -302,7 +223,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 6, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")},
+				APH: repo.AppPieceHeader{Part: 6, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")},
 			},
 			bou: repo.Boundary{},
 			wantStore: &StoreStruct{
@@ -310,7 +231,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n"),
 									FormName: "alice",
@@ -319,7 +240,7 @@ func (s *storeSuite) TestRegister() {
 								E: repo.True,
 							}}}},
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
-					{TS: "qqq"}: {&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 6, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}}},
+					{TS: "qqq"}: {&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 6, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}}},
 				},
 			},
 			wantErr: errors.New("in store.Register dataPiece's Part for given TS \"qqq\" should be \"5\" but got \"6\""),
@@ -333,7 +254,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n"),
 									FormName: "alice",
@@ -343,7 +264,7 @@ func (s *storeSuite) TestRegister() {
 							}}}},
 			},
 			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: true, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("azaza")},
+				APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: repo.True, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("azaza")},
 			},
 			bou: repo.Boundary{},
 			wantStore: &StoreStruct{
@@ -351,7 +272,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n"),
 									FormName: "alice",
@@ -362,7 +283,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -372,7 +293,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -382,7 +303,7 @@ func (s *storeSuite) TestRegister() {
 							}}}},
 			},
 			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 5, TS: "www", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")},
+				APH: repo.AppPieceHeader{Part: 5, TS: "www", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")},
 			},
 			bou: repo.Boundary{},
 			wantStore: &StoreStruct{
@@ -390,7 +311,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -399,7 +320,7 @@ func (s *storeSuite) TestRegister() {
 								E: repo.True,
 							}}}},
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
-					{TS: "www"}: {&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 5, TS: "www", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}}},
+					{TS: "www"}: {&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 5, TS: "www", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}}},
 				},
 			},
 			wantErr: errors.New("in store.Register dataPiece's TS \"www\" is unknown"),
@@ -413,7 +334,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -423,7 +344,7 @@ func (s *storeSuite) TestRegister() {
 							}}}},
 			},
 			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: true, E: repo.False}, APB: repo.AppPieceBody{B: []byte("azaza")},
+				APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("azaza")},
 			},
 			bou: repo.Boundary{},
 			wantStore: &StoreStruct{
@@ -431,38 +352,8 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {}},
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
-			wantErr: errors.New("in store.Register dataPiece group with TS \"qqq\" and BeginPart \"3\" is finished"),
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.Stop}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-		},
-
-		{
-			name: "B, E == repo.Last => deleting TS, issuing adu with finish message",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							}}}},
-				C: map[repo.AppStoreKeyGeneral]int{{TS: "qqq"}: 1},
-			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: true, E: repo.Last}, APB: repo.AppPieceBody{B: []byte("azaza")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-				C: map[repo.AppStoreKeyGeneral]int{{TS: "qqq"}: 1},
-			},
-			wantErr: errors.New("in store.Register dataPiece group with TS \"qqq\" and BeginPart \"3\" is finished"),
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantErr: errors.New("in store.Register dataPiece group with TS \"qqq\" and Part \"3\" is finished"),
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Close}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -472,7 +363,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -482,7 +373,7 @@ func (s *storeSuite) TestRegister() {
 							}}}},
 			},
 			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: true, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("azaza")},
+				APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: repo.True, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("azaza")},
 			},
 			bou: repo.Boundary{},
 			wantStore: &StoreStruct{
@@ -490,7 +381,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -501,7 +392,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -511,7 +402,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -520,7 +411,7 @@ func (s *storeSuite) TestRegister() {
 								E: repo.True,
 							},
 							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 5},
+								B: repo.BeginningData{Part: 5},
 								D: repo.Disposition{
 									H: []byte("--------"),
 								},
@@ -529,7 +420,7 @@ func (s *storeSuite) TestRegister() {
 						}}},
 			},
 			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: true, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("azaza")},
+				APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: repo.True, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("azaza")},
 			},
 			bou: repo.Boundary{},
 			wantStore: &StoreStruct{
@@ -537,7 +428,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 6}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -546,7 +437,7 @@ func (s *storeSuite) TestRegister() {
 								E: repo.Probably,
 							},
 							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 5},
+								B: repo.BeginningData{Part: 5},
 								D: repo.Disposition{
 									H: []byte("--------"),
 								},
@@ -555,80 +446,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-		},
-
-		{
-			name: "!B, header not full, 1 line => Dispositiion filling",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
-			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: false, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\""),
-								},
-								E: repo.True,
-							},
-						}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: errors.New("in store.Register header from dataPiece's body \"Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\" is not full"),
-			wantADU: repo.AppDistributorUnit{},
-		},
-
-		{
-			name: "!B, while appSub present, 2 different ASKDs, 1",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
-							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
-								D: repo.Disposition{
-									H: []byte("\r"),
-								},
-								E: repo.Probably,
-							}}}}},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 0, TS: "qqq", B: false, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Disposition: text/plain\r\n\r\nazaza")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
-							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
-								D: repo.Disposition{
-									H: []byte("\r"),
-								},
-								E: repo.Probably,
-							}},
-						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Disposition: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							}},
-					}},
-
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 0}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -638,7 +456,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
 							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 2},
+								B: repo.BeginningData{Part: 2},
 								D: repo.Disposition{
 									H: []byte("\r"),
 								},
@@ -646,7 +464,7 @@ func (s *storeSuite) TestRegister() {
 							}},
 						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
+								B: repo.BeginningData{Part: 0},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Disposition: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -656,7 +474,7 @@ func (s *storeSuite) TestRegister() {
 							}},
 					}}},
 			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")},
+				APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")},
 			},
 			bou: repo.Boundary{},
 			wantStore: &StoreStruct{
@@ -664,7 +482,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
 							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 2},
+								B: repo.BeginningData{Part: 2},
 								D: repo.Disposition{
 									H: []byte("\r"),
 								},
@@ -672,7 +490,7 @@ func (s *storeSuite) TestRegister() {
 							}},
 						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
+								B: repo.BeginningData{Part: 0},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Disposition: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -685,7 +503,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -695,7 +513,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
 							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 2},
+								B: repo.BeginningData{Part: 2},
 								D: repo.Disposition{
 									H: []byte("\r"),
 								},
@@ -703,7 +521,7 @@ func (s *storeSuite) TestRegister() {
 							}},
 						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
+								B: repo.BeginningData{Part: 0},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Disposition: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -713,7 +531,7 @@ func (s *storeSuite) TestRegister() {
 							}},
 					}}},
 			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 2, TS: "qqq", B: true, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("azaza")},
+				APH: repo.AppPieceHeader{Part: 2, TS: "qqq", B: repo.True, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("azaza")},
 			},
 			bou: repo.Boundary{},
 			wantStore: &StoreStruct{
@@ -721,14 +539,14 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
 							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 2},
+								B: repo.BeginningData{Part: 2},
 								D: repo.Disposition{
 									H: []byte("\r"),
 								},
 								E: repo.Probably,
 							},
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
+								B: repo.BeginningData{Part: 0},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Disposition: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -743,7 +561,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 2}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 2}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -753,7 +571,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: true}: {
 							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
+								B: repo.BeginningData{Part: 1},
 								D: repo.Disposition{
 									H: []byte("\r"),
 								},
@@ -761,7 +579,7 @@ func (s *storeSuite) TestRegister() {
 							}},
 						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
+								B: repo.BeginningData{Part: 0},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Disposition: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -771,7 +589,7 @@ func (s *storeSuite) TestRegister() {
 							}},
 					}}},
 			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: true, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("bzbzbz")},
+				APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: repo.True, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("bzbzbz")},
 			},
 			bou: repo.Boundary{},
 			wantStore: &StoreStruct{
@@ -779,14 +597,14 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
 							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
+								B: repo.BeginningData{Part: 1},
 								D: repo.Disposition{
 									H: []byte("\r"),
 								},
 								E: repo.Probably,
 							},
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
+								B: repo.BeginningData{Part: 0},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Disposition: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -800,651 +618,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("bzbzbz")}},
-		},
-
-		{
-			name: "!B, header not full, 2 lines => Dispositiion filling, 2",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
-			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 0, TS: "qqq", B: false, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nConte")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
-								D: repo.Disposition{
-									H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nConte"),
-								},
-								E: repo.True,
-							}}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: errors.New("in store.Register header from dataPiece's body \"Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nConte\" is not full"),
-			wantADU: repo.AppDistributorUnit{},
-		},
-
-		{
-			name: "!B, header full, 2",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
-			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: false, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Tyoe: text/plain\r\n\r\nazaza")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Tyoe: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							}}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-		},
-
-		{
-			name: "AppSub received => askd = d.Part, 2",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
-			},
-			d: &repo.AppSub{
-				ASH: repo.AppSubHeader{Part: 1, TS: "qqq"}, ASB: repo.AppSubBody{B: []byte("bP")},
-			},
-			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: true}: {
-							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
-								D: repo.Disposition{
-									H: []byte("bP"),
-								},
-								E: repo.Probably,
-							},
-						}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: errors.New("in store.Register got double-meaning dataPiece"),
-			wantADU: repo.AppDistributorUnit{},
-		},
-
-		{
-			name: "!B, E()=repo.Probably => askd = d.Part, 2",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
-			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 0, TS: "qqq", B: false, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"")},
-			},
-			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 0}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
-								D: repo.Disposition{
-									H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\""),
-								},
-								E: repo.Probably,
-							},
-						}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: errors.New("in store.Register header from dataPiece's body \"Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\" is not full"),
-			wantADU: repo.AppDistributorUnit{},
-		},
-
-		{
-			name: "!B, E()=repo.Probably, askg mathced => creating askd with SK.Part == d.Part",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {},
-				},
-			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: false, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\n\r\nazaza")},
-			},
-			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.Probably,
-							},
-						}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: errors.New("in store.Register got double-meaning dataPiece"),
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-		},
-
-		{
-			name: "!B, E()=repo.Probably,AppSub present => askd = d.Part++",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 0}, S: true}: {
-							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
-								D: repo.Disposition{
-									H: []byte("\r\n-----"),
-								},
-								E: repo.Probably,
-							},
-						}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 0, TS: "qqq", B: false, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("-------123456\r\nContent-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazaza")},
-			},
-
-			bou: repo.Boundary{Prefix: []byte("--"), Root: []byte("---------123456")},
-
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
-								D: repo.Disposition{
-									H:        []byte("-------123456\r\nContent-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.Probably,
-							},
-
-							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
-								D: repo.Disposition{
-									H: []byte("\r\n-----"),
-								},
-								E: repo.Probably,
-							},
-						},
-					}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 0}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-		},
-
-		{
-			name: "!B, askg met, header not full 1 line => New askd, D.H inconplete",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
-								D: repo.Disposition{
-									H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\""),
-								},
-								E: repo.True,
-							},
-						}}},
-			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: false, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
-								D: repo.Disposition{
-									H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\""),
-								},
-								E: repo.True,
-							}},
-						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H: []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\""),
-								},
-								E: repo.True,
-							}}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: errors.New("in store.Register header from dataPiece's body \"Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\" is not full"),
-			wantADU: repo.AppDistributorUnit{},
-		},
-
-		{
-			name: "!B, part is not match, full header",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							}}}},
-			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 7, TS: "qqq", B: false, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain\r\n\r\nazaza")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							}},
-						{SK: repo.StreamKey{TS: "qqq", Part: 8}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 7},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "bob",
-									FileName: "long.txt",
-								},
-								E: repo.True,
-							}}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 7}, F: repo.FiFo{FormName: "bob", FileName: "long.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-		},
-
-		{
-			name: "!B, part is not match, <1 header lines",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							}}}},
-			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 7, TS: "qqq", B: false, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"bob\"; file")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							}},
-						{SK: repo.StreamKey{TS: "qqq", Part: 8}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 7},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"bob\"; file"),
-									FormName: "",
-									FileName: "",
-								},
-								E: repo.True,
-							}}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-
-			wantErr: errors.New("in store.Register header from dataPiece's body \"Content-Disposition: form-data; name=\"bob\"; file\" is not full"),
-			wantADU: repo.AppDistributorUnit{},
-		},
-
-		{
-			name: "!B, part is not match, exactly 1 header line",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							}}}},
-			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 7, TS: "qqq", B: false, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							}},
-						{SK: repo.StreamKey{TS: "qqq", Part: 8}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 7},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r"),
-									FormName: "",
-									FileName: "",
-								},
-								E: repo.True,
-							}}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-
-			wantErr: errors.New("in store.Register header from dataPiece's body \"Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\" is not full"),
-			wantADU: repo.AppDistributorUnit{},
-		},
-
-		{
-			name: "!B, part is not match, <2 header lines",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							}}}},
-			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 7, TS: "qqq", B: false, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Ty")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							}},
-						{SK: repo.StreamKey{TS: "qqq", Part: 8}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 7},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Ty"),
-									FormName: "",
-									FileName: "",
-								},
-								E: repo.True,
-							}}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-
-			wantErr: errors.New("in store.Register header from dataPiece's body \"Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Ty\" is not full"),
-			wantADU: repo.AppDistributorUnit{},
-		},
-
-		{
-			name: "!B. detailed key already present (by previously accepted appSub, which also made level 3 map true branch). Adding level 3 map false branch",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: true}: {
-							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 5},
-								D: repo.Disposition{
-									H: []byte("--------"),
-								},
-								E: repo.Probably,
-							},
-						},
-					}}},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: false, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain\r\n\r\nazazaza")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 6}, S: false}: {
-							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 5},
-								D: repo.Disposition{
-									H: []byte("--------"),
-								},
-								E: repo.Probably,
-							},
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 5},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "bob",
-									FileName: "long.txt",
-								},
-								E: repo.Probably,
-							}}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-
-			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "bob", FileName: "long.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
-		},
-
-		{
-			name: "Registering appSub. Creating ASKG and ASKD",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
-			},
-			d: &repo.AppSub{
-				ASH: repo.AppSubHeader{Part: 1, TS: "qqq"}, ASB: repo.AppSubBody{B: []byte("--------")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: true}: {
-							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
-								D: repo.Disposition{
-									H: []byte("--------"),
-								},
-								E: repo.Probably,
-							}}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: errors.New("in store.Register got double-meaning dataPiece"),
-			wantADU: repo.AppDistributorUnit{},
-		},
-
-		{
-			name: "Registering appSub after previous appSub. Creating ASKD",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: true}: {
-							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
-								D: repo.Disposition{
-									H: []byte("\r\n--------"),
-								},
-								E: repo.Probably,
-							}}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			d: &repo.AppSub{
-				ASH: repo.AppSubHeader{Part: 2, TS: "qqq"}, ASB: repo.AppSubBody{B: []byte("\r\n")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: true}: {
-							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
-								D: repo.Disposition{
-									H: []byte("\r\n--------"),
-								},
-								E: repo.Probably,
-							}},
-						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
-							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 2},
-								D: repo.Disposition{
-									H: []byte("\r\n"),
-								},
-								E: repo.Probably,
-							}},
-					}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: errors.New("in store.Register got double-meaning dataPiece"),
-			wantADU: repo.AppDistributorUnit{},
-		},
-
-		{
-			name: "Registering appSub. Creating true detailed key",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							}}}},
-			},
-			d: &repo.AppSub{
-				ASH: repo.AppSubHeader{Part: 5, TS: "qqq"}, ASB: repo.AppSubBody{B: []byte("--------")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							}},
-						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: true}: {
-							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 5},
-								D: repo.Disposition{
-									H: []byte("--------"),
-								},
-								E: repo.Probably,
-							}}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: errors.New("in store.Register got double-meaning dataPiece"),
-			wantADU: repo.AppDistributorUnit{},
-		},
-
-		{
-			name: "Registering appSub white false btanch has E ==repo.Probably. Creating alternative specific key, detailed part incrementing",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.Probably,
-							}}}},
-			},
-			d: &repo.AppSub{
-				ASH: repo.AppSubHeader{Part: 5, TS: "qqq"}, ASB: repo.AppSubBody{B: []byte("--------")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 6}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.Probably,
-							},
-							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 5},
-								D: repo.Disposition{
-									H: []byte("--------"),
-								},
-								E: repo.Probably,
-							}}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: errors.New("in store.Register got double-meaning dataPiece"),
-			wantADU: repo.AppDistributorUnit{},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzbz")}},
 		},
 
 		{
@@ -1454,7 +628,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 7}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -1463,7 +637,7 @@ func (s *storeSuite) TestRegister() {
 								E: repo.Probably,
 							},
 							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 5},
+								B: repo.BeginningData{Part: 5},
 								D: repo.Disposition{
 									H: []byte("--------"),
 								},
@@ -1472,7 +646,7 @@ func (s *storeSuite) TestRegister() {
 						}}},
 			},
 			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 7, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("---------0123456789\r\nContent-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain\r\n\r\nazazazazazaza")},
+				APH: repo.AppPieceHeader{Part: 7, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("---------0123456789\r\nContent-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain\r\n\r\nazazazazazaza")},
 			},
 			bou: repo.Boundary{Prefix: []byte("--"), Root: []byte("---------------0123456789")},
 			wantStore: &StoreStruct{
@@ -1480,7 +654,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 8}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 5},
+								B: repo.BeginningData{Part: 5},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "bob",
@@ -1491,8 +665,8 @@ func (s *storeSuite) TestRegister() {
 						}}},
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
-			wantErr: errors.New("in store.Register new dataPiece group with TS \"qqq\" and BeginPart = 5"),
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, U: repo.UnaryData{}, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 7}, F: repo.FiFo{FormName: "bob", FileName: "long.txt"}, M: repo.Message{PreAction: repo.StopLast, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azazazazazaza")}},
+			wantErr: errors.New("in store.Register new dataPiece group with TS \"qqq\" and Part = 5"),
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, U: repo.UnaryData{}, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 7}, F: repo.FiFo{FormName: "bob", FileName: "long.txt"}, M: repo.Message{PreAction: repo.StopLast, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazazazazaza")}},
 		},
 
 		{
@@ -1502,7 +676,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 6}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -1511,7 +685,7 @@ func (s *storeSuite) TestRegister() {
 								E: repo.Probably,
 							},
 							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 5},
+								B: repo.BeginningData{Part: 5},
 								D: repo.Disposition{
 									H: []byte("\r\n--------"),
 								},
@@ -1520,7 +694,7 @@ func (s *storeSuite) TestRegister() {
 						}}},
 			},
 			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 6, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("--------azazaza\r\nbzbzbzbzb")},
+				APH: repo.AppPieceHeader{Part: 6, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("--------azazaza\r\nbzbzbzbzb")},
 			},
 			bou: repo.Boundary{Prefix: []byte("--"), Root: []byte("---------------0123456789")},
 			wantStore: &StoreStruct{
@@ -1528,7 +702,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 7}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
+								B: repo.BeginningData{Part: 3},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -1540,43 +714,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 6}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}}}, B: repo.AppDistributorBody{B: []byte("\r\n----------------azazaza\r\nbzbzbzbzb")}},
-		},
-
-		{
-			name: "Registering dataPiece next to appSub. Body is ending part of last boundary",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 6}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.Probably,
-							},
-							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 5},
-								D: repo.Disposition{
-									H: []byte("\r\n--------"),
-								},
-								E: repo.Probably,
-							},
-						}}},
-			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 6, TS: "qqq", B: true, E: repo.Last}, APB: repo.AppPieceBody{B: []byte("---------0123456789--\r\n")},
-			},
-			bou: repo.Boundary{Prefix: []byte("--"), Root: []byte("---------------0123456789")},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: errors.New("in store.Register dataPiece group with TS \"qqq\" is finished"),
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 6}, M: repo.Message{PreAction: repo.None, PostAction: repo.Finish}}}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 6}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("\r\n----------------azazaza\r\nbzbzbzbzb")}},
 		},
 
 		{
@@ -1586,14 +724,14 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 6}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 5},
+								B: repo.BeginningData{Part: 5},
 								D: repo.Disposition{
 									H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\""),
 								},
 								E: repo.Probably,
 							},
 							true: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 5},
+								B: repo.BeginningData{Part: 5},
 								D: repo.Disposition{
 									H: []byte("\r"),
 								},
@@ -1602,7 +740,7 @@ func (s *storeSuite) TestRegister() {
 						}}},
 			},
 			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 6, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("\nContent-Type: text/plain\r\n\r\nazaza")},
+				APH: repo.AppPieceHeader{Part: 6, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("\nContent-Type: text/plain\r\n\r\nazaza")},
 			},
 			bou: repo.Boundary{Prefix: []byte("--"), Root: []byte("---------------0123456789")},
 			wantStore: &StoreStruct{
@@ -1610,7 +748,7 @@ func (s *storeSuite) TestRegister() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 7}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 5},
+								B: repo.BeginningData{Part: 5},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -1621,85 +759,8 @@ func (s *storeSuite) TestRegister() {
 						}}},
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
-			wantErr: errors.New("in store.Register new dataPiece group with TS \"qqq\" and BeginPart = 5"),
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, U: repo.UnaryData{}, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 6}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-		},
-
-		{
-			name: "!B, E() == repo.False => store remains, unary adu not last",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nConte"),
-								},
-								E: repo.True,
-							}}}},
-			},
-
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: false, E: repo.False}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"\r\n\r\nazaza")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nConte"),
-								},
-								E: repo.True,
-							}}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-			},
-			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{TS: "qqq", F: repo.FiFo{FormName: "alice"}, M: repo.Message{}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-		},
-
-		{
-			name: "!B, E() == repo.False => store remains, unary adu last",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nConte"),
-								},
-								E: repo.True,
-							}}}},
-				C: map[repo.AppStoreKeyGeneral]int{{TS: "qqq"}: 2},
-			},
-
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: false, E: repo.Last}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"\r\n\r\nazaza")},
-			},
-			bou: repo.Boundary{},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nConte"),
-								},
-								E: repo.True,
-							}}}},
-				C: map[repo.AppStoreKeyGeneral]int{{TS: "qqq"}: 2},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
-					{TS: "qqq"}: {
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: false, E: repo.Last}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"\r\n\r\nazaza")}}},
-				},
-			},
-			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{},
+			wantErr: errors.New("in store.Register new dataPiece group with TS \"qqq\" and Part = 5"),
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, U: repo.UnaryData{}, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 6}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 	}
 	for _, v := range tt {
@@ -1725,164 +786,12 @@ func (s *storeSuite) TestRegisterBuffer() {
 	tt := []struct {
 		name      string
 		store     Store
+		d         repo.DataPiece
 		bou       repo.Boundary
 		wantStore Store
 		wantADUs  []repo.AppDistributorUnit
 		wantErr   []error
 	}{
-
-		{
-			name: "Releasing not last, leaving last element",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							},
-						}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
-					{TS: "qqq"}: {
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 2, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: true, E: repo.Last}, APB: repo.AppPieceBody{B: []byte("bzbzb")}},
-					},
-				},
-				C: map[repo.AppStoreKeyGeneral]int{{TS: "qqq"}: 3},
-			},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							},
-						}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
-					{TS: "qqq"}: {
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: true, E: repo.Last}, APB: repo.AppPieceBody{B: []byte("bzbzb")}},
-					},
-				},
-				C: map[repo.AppStoreKeyGeneral]int{{TS: "qqq"}: 2},
-			},
-			wantADUs: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 2}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-			},
-			wantErr: []error{},
-		},
-
-		{
-			name: "counter > 1, doing nothing",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							},
-						}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
-					{TS: "qqq"}: {
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 2, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: true, E: repo.Last}, APB: repo.AppPieceBody{B: []byte("bzbzb")}},
-					},
-				},
-				C: map[repo.AppStoreKeyGeneral]int{{TS: "qqq"}: 2},
-			},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 3},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							},
-						}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
-					{TS: "qqq"}: {
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 2, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: true, E: repo.Last}, APB: repo.AppPieceBody{B: []byte("bzbzb")}},
-					},
-				},
-				C: map[repo.AppStoreKeyGeneral]int{{TS: "qqq"}: 2},
-			},
-			wantADUs: []repo.AppDistributorUnit{},
-			wantErr:  []error{},
-		},
-
-		{
-			name: "counter = 2, registering from buffer",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							},
-						},
-						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 2},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "bob",
-									FileName: "long.txt",
-								},
-								E: repo.True,
-							},
-						},
-					}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
-					{TS: "qqq"}: {
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: true, E: repo.False}, APB: repo.AppPieceBody{B: []byte("azaza")}},
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: true, E: repo.Last}, APB: repo.AppPieceBody{B: []byte("bzbzb")}},
-					},
-				},
-				C: map[repo.AppStoreKeyGeneral]int{{TS: "qqq"}: 2},
-			},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-				C: map[repo.AppStoreKeyGeneral]int{{TS: "qqq"}: 0},
-			},
-			wantADUs: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.Stop}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3}, F: repo.FiFo{FormName: "bob", FileName: "long.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("bzbzb")}},
-			},
-			wantErr: []error{
-				errors.New("in store.Register dataPiece group with TS \"qqq\" and BeginPart \"0\" is finished"),
-				errors.New("in store.Register dataPiece group with TS \"qqq\" and BeginPart \"2\" is finished"),
-			},
-		},
-
 		{
 			name: "No elements",
 			store: &StoreStruct{
@@ -1890,7 +799,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 5},
+								B: repo.BeginningData{Part: 5},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -1900,12 +809,15 @@ func (s *storeSuite) TestRegisterBuffer() {
 							},
 						}}},
 			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 1, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nbzbzbz")},
+			},
 			wantStore: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 5},
+								B: repo.BeginningData{Part: 5},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -1920,224 +832,66 @@ func (s *storeSuite) TestRegisterBuffer() {
 				errors.New("in store.RegisterBuffer buffer has no elements"),
 			},
 		},
+
 		{
-			name: "len(B)=1, B",
+			name: "Empty ASKG map",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: {
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
 									FileName: "short.txt",
 								},
-								E: repo.True,
+								B: repo.BeginningData{Part: 0},
+								E: repo.False,
 							},
 						}}},
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
 					{TS: "qqq"}: {
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 2, TS: "qqq", B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("azaza")}},
 					}},
-				C: map[repo.AppStoreKeyGeneral]int{
-					{TS: "qqq"}: 5,
-				},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 6, Cur: 1}},
 			},
-			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							},
-						}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-				C: map[repo.AppStoreKeyGeneral]int{
-					{TS: "qqq"}: 4,
-				},
-			},
-			wantADUs: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-			},
-			wantErr: []error{},
-		},
-
-		{
-			name: "len(B)=1, !B",
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							},
-						}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
-					{TS: "qqq"}: {
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
-					}},
-				C: map[repo.AppStoreKeyGeneral]int{
-					{TS: "qqq"}: 2,
-				},
-			},
-			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							},
-						}}},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-				C: map[repo.AppStoreKeyGeneral]int{
-					{TS: "qqq"}: 1,
-				},
-			},
-			wantADUs: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-			},
-			wantErr: []error{},
-		},
-
-		{
-			name: "len(b)=2, C > 1, doing nothing",
-
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 2},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							},
-						}}},
-
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
-					{TS: "qqq"}: {
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: true, E: repo.False}, APB: repo.AppPieceBody{B: []byte("azaza")}},
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: true, E: repo.Last}, APB: repo.AppPieceBody{B: []byte("bzbzbz")}},
-					}},
-				C: map[repo.AppStoreKeyGeneral]int{
-					{TS: "qqq"}: 2,
-				},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 1, B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nbzbzbz")},
 			},
 			wantStore: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 2},
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: {
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
 									FileName: "short.txt",
 								},
-								E: repo.True,
+								B: repo.BeginningData{Part: 0},
+								E: repo.False,
 							},
 						}}},
-
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
 					{TS: "qqq"}: {
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: true, E: repo.False}, APB: repo.AppPieceBody{B: []byte("azaza")}},
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: true, E: repo.Last}, APB: repo.AppPieceBody{B: []byte("bzbzbz")}},
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 2, TS: "qqq", B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("azaza")}},
 					}},
-				C: map[repo.AppStoreKeyGeneral]int{
-					{TS: "qqq"}: 2,
-				},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 6, Cur: 1}},
 			},
 			wantADUs: []repo.AppDistributorUnit{},
 			wantErr:  []error{},
 		},
 
 		{
-			name: "len(b)=2, C == 2, parts matched, releasing buffer",
-
-			store: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-					{TS: "qqq"}: {
-						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 0},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "alice",
-									FileName: "short.txt",
-								},
-								E: repo.True,
-							},
-						},
-						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
-							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 2},
-								D: repo.Disposition{
-									H:        []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-									FormName: "bob",
-									FileName: "long.txt",
-								},
-								E: repo.True,
-							},
-						},
-					}},
-
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
-					{TS: "qqq"}: {
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: true, E: repo.False}, APB: repo.AppPieceBody{B: []byte("azaza")}},
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: true, E: repo.Last}, APB: repo.AppPieceBody{B: []byte("bzbzbz")}},
-					}},
-				C: map[repo.AppStoreKeyGeneral]int{
-					{TS: "qqq"}: 2,
-				},
-			},
-			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-				C: map[repo.AppStoreKeyGeneral]int{
-					{TS: "qqq"}: 0,
-				},
-			},
-			wantADUs: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.Stop}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3}, F: repo.FiFo{FormName: "bob", FileName: "long.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("bzbzbz")}},
-			},
-			wantErr: []error{
-				errors.New("in store.Register dataPiece group with TS \"qqq\" and BeginPart \"0\" is finished"),
-				errors.New("in store.Register dataPiece group with TS \"qqq\" and BeginPart \"2\" is finished"),
-			},
-		},
-		{
-			name: "len(B)>0, all E == repo.True",
+			name: "len(B) = 1, part and TS matched => releasing",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
+								B: repo.BeginningData{Part: 1},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -2148,12 +902,189 @@ func (s *storeSuite) TestRegisterBuffer() {
 						}}},
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
 					{TS: "qqq"}: {
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("bzbzb")}},
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("czczc")}},
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+					}},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 6, Cur: 5}},
+			},
+
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("bzbzbz")},
+			},
+			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 1},
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								E: repo.True,
+							},
+						}}},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 6, Cur: 4}},
+			},
+			wantADUs: []repo.AppDistributorUnit{
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			},
+			wantErr: []error{},
+		},
+
+		{
+			name: "real case, buffer element has E() == repo.Probably, OB is registered, after releasing s.R[askg][askd] should increment its part",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 1},
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								E: repo.True,
+							},
+						},
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
+							true: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 2},
+								D: repo.Disposition{
+									H: []byte("\r\n"),
+								},
+								E: repo.Probably,
+							},
+						},
+					}},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
+					{TS: "qqq"}: {
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 2, TS: "qqq", B: repo.True, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("azazaza")}},
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("czczczcz")}},
+					}},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 6, Cur: 5}},
+			},
+
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 0, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nbzbzbz")},
+			},
+			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 1},
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								E: repo.True,
+							},
+						},
+					}},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 6, Cur: 3}},
+			},
+			wantADUs: []repo.AppDistributorUnit{
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 2, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("\r\nczczczcz")}},
+			},
+			wantErr: []error{},
+		},
+
+		{
+			name: "Buffer contains dataPieces with wanted and unwanted Part, releasing one that wanted, leaving unwanted",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 1},
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								E: repo.True,
+							},
+						}}},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
+					{TS: "qqq"}: {
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 2, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("bzbzb")}},
 					},
 				},
-				C: map[repo.AppStoreKeyGeneral]int{{TS: "qqq"}: 5},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 3, Cur: 3}},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 1, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nbzbzbz")},
+			},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 1},
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								E: repo.True,
+							},
+						}}},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
+					{TS: "qqq"}: {
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("bzbzb")}},
+					},
+				},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 3, Cur: 2}},
+			},
+			wantADUs: []repo.AppDistributorUnit{
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 2, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			},
+			wantErr: []error{},
+		},
+
+		{
+			name: "len(B)>0, all E() == repo.True, TS == dataPiece's TS, parts are matched, all actions are repo.None",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 1},
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								E: repo.True,
+							},
+						}}},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
+					{TS: "qqq"}: {
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("bzbzb")}},
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("czczc")}},
+					},
+				},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 6, Cur: 5}},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("dzdzdzdz")},
 			},
 			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 			wantStore: &StoreStruct{
@@ -2161,7 +1092,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 6}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
+								B: repo.BeginningData{Part: 1},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -2171,12 +1102,117 @@ func (s *storeSuite) TestRegisterBuffer() {
 							},
 						}}},
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-				C: map[repo.AppStoreKeyGeneral]int{{TS: "qqq"}: 2},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 6, Cur: 2}},
 			},
 			wantADUs: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("bzbzb")}},
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("czczc")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzb")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("czczc")}},
+			},
+			wantErr: []error{},
+		},
+
+		{
+			name: "len(B)>0, all E() == repo.True, TS == dataPiece's TS, parts are matched, dataPiece with part 5 is last",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 1},
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								E: repo.True,
+							},
+						}}},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
+					{TS: "qqq"}: {
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("bzbzb")}},
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("czczc")}},
+					},
+				},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 6, Cur: 3}},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("dzdzdzdz")},
+			},
+			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{},
+			},
+			wantADUs: []repo.AppDistributorUnit{
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzb")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("czczc")}},
+			},
+			wantErr: []error{},
+		},
+
+		{
+			name: "len(B)>0, element with different TS should be ignored",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 1},
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								E: repo.True,
+							},
+						}}},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
+					{TS: "qqq"}: {
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("bzbzb")}},
+					},
+					{TS: "www"}: {
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 5, TS: "www", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("czczc")}},
+					},
+				},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 6, Cur: 5}},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("dzdzdzdz")},
+			},
+			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 1},
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								E: repo.True,
+							},
+						}}},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
+					{TS: "www"}: {
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 5, TS: "www", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("czczc")}},
+					},
+				},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 6, Cur: 3}},
+			},
+			wantADUs: []repo.AppDistributorUnit{
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzb")}},
 			},
 			wantErr: []error{},
 		},
@@ -2188,7 +1224,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
+								B: repo.BeginningData{Part: 1},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -2199,12 +1235,16 @@ func (s *storeSuite) TestRegisterBuffer() {
 						}}},
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
 					{TS: "qqq"}: {
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: true, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("bzbzb")}},
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("czczc")}},
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: repo.True, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("bzbzb")}},
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("czczc")}},
 					},
 				},
-				C: map[repo.AppStoreKeyGeneral]int{{TS: "qqq"}: 5},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 6, Cur: 5}},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("dzdzdzdz")},
 			},
 			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 			wantStore: &StoreStruct{
@@ -2212,7 +1252,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 					{TS: "qqq"}: {
 						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
 							false: repo.AppStoreValue{
-								B: repo.BeginningData{TS: "qqq", BeginPart: 1},
+								B: repo.BeginningData{Part: 1},
 								D: repo.Disposition{
 									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
 									FormName: "alice",
@@ -2223,14 +1263,15 @@ func (s *storeSuite) TestRegisterBuffer() {
 						}}},
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
 					{TS: "qqq"}: {
-						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: true, E: repo.True}, APB: repo.AppPieceBody{B: []byte("czczc")}},
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("czczc")}},
 					},
 				},
-				C: map[repo.AppStoreKeyGeneral]int{{TS: "qqq"}: 3},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 6, Cur: 3}},
 			},
 			wantADUs: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("bzbzb")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzb")}},
 			},
 			wantErr: []error{
 				errors.New("in store.Register got double-meaning dataPiece"),
@@ -2241,11 +1282,1571 @@ func (s *storeSuite) TestRegisterBuffer() {
 	for _, v := range tt {
 		s.Run(v.name, func() {
 
-			gotADUs, gotErr := v.store.RegisterBuffer(v.bou)
+			gotADUs, gotErr := v.store.RegisterBuffer(v.d, v.bou)
 
 			s.Equal(v.wantStore, v.store)
 			s.Equal(v.wantADUs, gotADUs)
 			s.Equal(v.wantErr, gotErr)
+		})
+	}
+}
+
+func (s *storeSuite) TestPresense() {
+
+	tt := []struct {
+		name         string
+		store        Store
+		d            repo.DataPiece
+		wantPresense repo.Presense
+	}{
+		{
+			name: "No ASKG",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
+			},
+			d:            &repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 0, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+			wantPresense: repo.Presense{},
+		},
+
+		{
+			name: "ASKG met, no ASKD",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {},
+				},
+			},
+			d: &repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 1, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+			wantPresense: repo.Presense{
+				ASKG: true},
+		},
+
+		{
+			name: "ASKG met, wrong ASKD",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {},
+					},
+				},
+			},
+			d: &repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 1, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+			wantPresense: repo.Presense{
+				ASKG: true},
+		},
+
+		{
+			name: "AppSub, no ASKG",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
+			},
+			d:            &repo.AppSub{ASH: repo.AppSubHeader{TS: "qqq", Part: 1}, ASB: repo.AppSubBody{B: []byte("\r\n")}},
+			wantPresense: repo.Presense{},
+		},
+
+		{
+			name: "AppSub, ASKG met, no opposite detailed branch",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{Part: 0},
+								E: repo.True,
+							},
+						},
+					},
+				},
+			},
+			d: &repo.AppSub{ASH: repo.AppSubHeader{TS: "qqq", Part: 1}, ASB: repo.AppSubBody{B: []byte("\r\n")}},
+			wantPresense: repo.Presense{
+				ASKG: true,
+			},
+		},
+		{
+			name: "AppSub, ASKG met, opposite detailed branch met",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{Part: 0},
+								E: repo.Probably,
+							},
+						},
+					},
+				},
+			},
+			d: &repo.AppSub{ASH: repo.AppSubHeader{TS: "qqq", Part: 1}, ASB: repo.AppSubBody{B: []byte("\r\n")}},
+			wantPresense: repo.Presense{
+				ASKG: true,
+				ASKD: true,
+				OB:   true,
+				GR: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{Part: 0},
+							E: repo.Probably,
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "B() == repo.False && E() == repo.Probably, no askg met",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
+			},
+			d:            &repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 0, B: repo.False, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazaza")}},
+			wantPresense: repo.Presense{},
+		},
+
+		{
+			name: "B() == repo.False && E() == repo.Probably, askg met but no OB met",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{Part: 0},
+							E: repo.True,
+						}},
+					},
+				},
+			},
+			d: &repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.False, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazaza")}},
+			wantPresense: repo.Presense{
+				ASKG: true,
+				ASKD: true,
+			},
+		},
+
+		{
+			name: "B() == repo.False && E() == repo.Probably, askg met, OB met",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
+							true: {
+								D: repo.Disposition{
+									H: []byte("\r\n"),
+								},
+								B: repo.BeginningData{Part: 2},
+								E: repo.Probably,
+							},
+						},
+					},
+				},
+			},
+			d: &repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.False, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazaza")}},
+			wantPresense: repo.Presense{
+				ASKG: true,
+				ASKD: true,
+				OB:   true,
+				GR: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
+						true: {
+							D: repo.Disposition{
+								H: []byte("\r\n"),
+							},
+							B: repo.BeginningData{Part: 2},
+							E: repo.Probably,
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "B() == repo.True && E() == repo.Probably, askd met, askd.T() met",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{Part: 0},
+								E: repo.True,
+							},
+						},
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
+							true: {
+								D: repo.Disposition{
+									H: []byte("\r\n"),
+								},
+								B: repo.BeginningData{Part: 2},
+								E: repo.Probably,
+							},
+						},
+					},
+				},
+			},
+			d: &repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.True, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+			wantPresense: repo.Presense{
+				ASKG: true,
+				ASKD: true,
+				OB:   true,
+				GR: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{Part: 0},
+							E: repo.True,
+						},
+					},
+					{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
+						true: {
+							D: repo.Disposition{
+								H: []byte("\r\n"),
+							},
+							B: repo.BeginningData{Part: 2},
+							E: repo.Probably,
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "E() == repo.False, askd met, askd.T() met",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{Part: 0},
+								E: repo.True,
+							},
+						},
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
+							true: {
+								D: repo.Disposition{
+									H: []byte("\r\n"),
+								},
+								B: repo.BeginningData{Part: 2},
+								E: repo.Probably,
+							},
+						},
+					},
+				},
+			},
+			d: &repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+			wantPresense: repo.Presense{
+				ASKG: true,
+				ASKD: true,
+				OB:   false,
+				GR: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{Part: 0},
+							E: repo.True,
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "E() == repo.Probably, askd met, oppoaite branch met",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{Part: 0},
+								E: repo.True,
+							},
+						},
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{Part: 1},
+								E: repo.True,
+							},
+						},
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
+							true: {
+								D: repo.Disposition{
+									H: []byte("\r\n"),
+								},
+								B: repo.BeginningData{Part: 2},
+								E: repo.Probably,
+							},
+						},
+					},
+				},
+			},
+			d: &repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.True, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+			wantPresense: repo.Presense{
+				ASKG: true,
+				ASKD: true,
+				OB:   true,
+				GR: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{Part: 1},
+							E: repo.True,
+						},
+					},
+					{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
+						true: {
+							D: repo.Disposition{
+								H: []byte("\r\n"),
+							},
+							B: repo.BeginningData{Part: 2},
+							E: repo.Probably,
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "ASKD met, 2 specific branches, E() == repo.True",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{Part: 0},
+								E: repo.Probably,
+							},
+							true: {
+								D: repo.Disposition{
+									H: []byte("\r\n"),
+								},
+								B: repo.BeginningData{Part: 2},
+								E: repo.Probably,
+							},
+						},
+						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "bob",
+									FileName: "long.txt",
+								},
+								B: repo.BeginningData{Part: 3},
+								E: repo.True,
+							},
+						},
+					},
+				},
+			},
+			d: &repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 3, B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+			wantPresense: repo.Presense{
+				ASKG: true,
+				ASKD: true,
+				OB:   false,
+				GR: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{Part: 0},
+							E: repo.Probably,
+						},
+						true: {
+							D: repo.Disposition{
+								H: []byte("\r\n"),
+							},
+							B: repo.BeginningData{Part: 2},
+							E: repo.Probably,
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "ASKD met, 2 detailed branches, 2 specific branches, E() == repo.Probably",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{Part: 0},
+								E: repo.Probably,
+							},
+							true: {
+								D: repo.Disposition{
+									H: []byte("\r\n"),
+								},
+								B: repo.BeginningData{Part: 2},
+								E: repo.Probably,
+							},
+						},
+						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: true}: {
+							true: {
+								D: repo.Disposition{
+									H: []byte("\r\n"),
+								},
+								B: repo.BeginningData{Part: 3},
+								E: repo.Probably,
+							},
+						},
+						{SK: repo.StreamKey{TS: "qqq", Part: 6}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "bob",
+									FileName: "long.txt",
+								},
+								B: repo.BeginningData{Part: 5},
+								E: repo.True,
+							},
+						},
+					},
+				},
+			},
+			d: &repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 3, B: repo.True, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+			wantPresense: repo.Presense{
+				ASKG: true,
+				ASKD: true,
+				OB:   true,
+				GR: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{Part: 0},
+							E: repo.Probably,
+						},
+						true: {
+							D: repo.Disposition{
+								H: []byte("\r\n"),
+							},
+							B: repo.BeginningData{Part: 2},
+							E: repo.Probably,
+						},
+					},
+					{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: true}: {
+						true: {
+							D: repo.Disposition{
+								H: []byte("\r\n"),
+							},
+							B: repo.BeginningData{Part: 3},
+							E: repo.Probably,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, v := range tt {
+		s.Run(v.name, func() {
+
+			s.Equal(v.wantPresense, v.store.Presense(v.d))
+		})
+	}
+}
+func (s *storeSuite) TestDec() {
+	tt := []struct {
+		name      string
+		store     Store
+		d         repo.DataPiece
+		wantO     repo.Order
+		wantStore Store
+	}{
+		{
+			name: "Unordered",
+			store: &StoreStruct{
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 4, Cur: 4},
+				},
+			},
+			d:     &repo.AppSub{ASH: repo.AppSubHeader{TS: "qqq", Part: 1}, ASB: repo.AppSubBody{B: []byte("\r\n")}},
+			wantO: repo.Unordered,
+			wantStore: &StoreStruct{
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 3, Cur: 3},
+				},
+			},
+		},
+
+		{
+			name: "First",
+			store: &StoreStruct{
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 4, Cur: 4},
+				},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 0, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Conte")},
+			},
+			wantO: repo.First,
+			wantStore: &StoreStruct{
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 4, Cur: 3},
+				},
+			},
+		},
+
+		{
+			name: "First and Last",
+			store: &StoreStruct{
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 1, Cur: 1},
+				},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 0, B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazaza")},
+			},
+			wantO: repo.FirstAndLast,
+			wantStore: &StoreStruct{
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{},
+			},
+		},
+
+		{
+			name: "Intermediate",
+			store: &StoreStruct{
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 4, Cur: 3},
+				},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 0, B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("nt-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazaza")},
+			},
+			wantO: repo.Intermediate,
+			wantStore: &StoreStruct{
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 4, Cur: 2},
+				},
+			},
+		},
+	}
+
+	for _, v := range tt {
+		s.Run(v.name, func() {
+			gotO := v.store.Dec(v.d)
+
+			s.Equal(v.wantO, gotO)
+			s.Equal(v.wantStore, v.store)
+
+		})
+	}
+}
+
+/*
+	func (s *storeSuite) TestUpdate() {
+		tt := []struct {
+			name      string
+			store     Store
+			dr        repo.DetailedRecord
+			wantStore Store
+		}{
+			{
+				name: "askg, askd present, updating askd",
+				store: &StoreStruct{
+					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+						{TS: "qqq"}: {
+							{SK: repo.StreamKey{TS: "qqq", Part: 0}, S: false}: {
+								false: repo.AppStoreValue{
+									D: repo.Disposition{
+										H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									B: repo.BeginningData{Part: 0},
+									E: repo.True,
+								},
+							},
+						},
+					},
+				},
+				dr: repo.DetailedRecord{
+					ASKD: repo.AppStoreKeyDetailed{SK: repo.StreamKey{TS: "qqq", Part: 0}, S: false},
+					DR: map[bool]repo.AppStoreValue{
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{Part: 0},
+							E: repo.True,
+						},
+					},
+				},
+				wantStore: &StoreStruct{
+					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+						{TS: "qqq"}: {
+							{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+								false: repo.AppStoreValue{
+									D: repo.Disposition{
+										H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									B: repo.BeginningData{Part: 0},
+									E: repo.True,
+								},
+							},
+						},
+					},
+				},
+			},
+
+			{
+				name: "create askg, update askd",
+				store: &StoreStruct{
+					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
+				},
+				dr: repo.DetailedRecord{
+					ASKD: repo.AppStoreKeyDetailed{SK: repo.StreamKey{TS: "qqq", Part: 0}, S: false},
+					DR: map[bool]repo.AppStoreValue{
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{Part: 0},
+							E: repo.True,
+						},
+					},
+				},
+				wantStore: &StoreStruct{
+					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+						{TS: "qqq"}: {
+							{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+								false: repo.AppStoreValue{
+									D: repo.Disposition{
+										H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									B: repo.BeginningData{Part: 0},
+									E: repo.True,
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		for _, v := range tt {
+			s.Run(v.name, func() {
+				v.store.Update(v.dr)
+
+				s.Equal(v.wantStore, v.store)
+			})
+		}
+	}
+*/
+func (s *storeSuite) TestAct() {
+	tt := []struct {
+		name      string
+		store     Store
+		d         repo.DataPiece
+		sc        repo.StoreChange
+		wantStore Store
+	}{
+
+		{
+			name: "B() == repo.False & E() == repo.True, header present completely, store is empty",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 0, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazaza")},
+			},
+			sc: repo.StoreChange{
+				A: repo.Change,
+				To: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{
+								Part: 0,
+							},
+							E: repo.True,
+						},
+					},
+				},
+			},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{
+									Part: 0,
+								},
+								E: repo.True,
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "B() == repo.False & E() == repo.True, header present completely, store is not empty",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
+							true: {
+								D: repo.Disposition{
+									H: []byte("\r\n"),
+								},
+								B: repo.BeginningData{
+									Part: 2,
+								},
+								E: repo.Probably,
+							},
+						},
+					},
+				},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 0, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazaza")},
+			},
+			sc: repo.StoreChange{
+				A: repo.Change,
+				To: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{
+								Part: 0,
+							},
+							E: repo.True,
+						},
+					},
+				},
+			},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
+							true: {
+								D: repo.Disposition{
+									H: []byte("\r\n"),
+								},
+								B: repo.BeginningData{
+									Part: 2,
+								},
+								E: repo.Probably,
+							},
+						},
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{
+									Part: 0,
+								},
+								E: repo.True,
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "B() == repo.False & E() == repo.True, header present partly",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 0, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain")},
+			},
+			sc: repo.StoreChange{
+				A: repo.Change,
+				To: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain"),
+							},
+							B: repo.BeginningData{
+								Part: 0,
+							},
+							E: repo.True,
+						},
+					},
+				},
+			},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain"),
+								},
+								B: repo.BeginningData{
+									Part: 0,
+								},
+								E: repo.True,
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "B() == repo.False & E() == repo.True, header present partly && ASKG met",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 0},
+								D: repo.Disposition{
+									H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\""),
+								},
+								E: repo.True,
+							}}},
+				},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 3, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain")},
+			},
+			sc: repo.StoreChange{
+				A: repo.Change,
+				To: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H: []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain"),
+							},
+							B: repo.BeginningData{
+								Part: 3,
+							},
+							E: repo.True,
+						},
+					},
+				},
+			},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 0},
+								D: repo.Disposition{
+									H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\""),
+								},
+								E: repo.True,
+							}},
+
+						{SK: repo.StreamKey{TS: "qqq", Part: 4}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H: []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain"),
+								},
+								B: repo.BeginningData{
+									Part: 3,
+								},
+								E: repo.True,
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "AppSub, no ASKG met",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
+			},
+			d: &repo.AppSub{
+				ASH: repo.AppSubHeader{TS: "qqq", Part: 1}, ASB: repo.AppSubBody{B: []byte("\r\n")},
+			},
+			sc: repo.StoreChange{
+				A: repo.Change,
+				To: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: true}: {
+						true: {
+							D: repo.Disposition{
+								H: []byte("\r\n"),
+							},
+							B: repo.BeginningData{
+								Part: 1,
+							},
+							E: repo.Probably,
+						},
+					},
+				},
+			},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: true}: {
+							true: {
+								D: repo.Disposition{
+									H: []byte("\r\n"),
+								},
+								B: repo.BeginningData{
+									Part: 1,
+								},
+								E: repo.Probably,
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "AppSub, ASKG met, no OD branch met_0",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{
+									Part: 0,
+								},
+								E: repo.True,
+							},
+						},
+					},
+				},
+			},
+			d: &repo.AppSub{
+				ASH: repo.AppSubHeader{TS: "qqq", Part: 2}, ASB: repo.AppSubBody{B: []byte("\r\n")},
+			},
+			sc: repo.StoreChange{
+				A: repo.Change,
+				To: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
+						true: {
+							D: repo.Disposition{
+								H: []byte("\r\n"),
+							},
+							B: repo.BeginningData{
+								Part: 2,
+							},
+							E: repo.Probably,
+						},
+					},
+				},
+			},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{
+									Part: 0,
+								},
+								E: repo.True,
+							},
+						},
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
+							true: {
+								D: repo.Disposition{
+									H: []byte("\r\n"),
+								},
+								B: repo.BeginningData{
+									Part: 2,
+								},
+								E: repo.Probably,
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "AppSub, ASKG met, no OD branch met_1",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{
+									Part: 0,
+								},
+								E: repo.True,
+							},
+						},
+					},
+				},
+			},
+			d: &repo.AppSub{
+				ASH: repo.AppSubHeader{TS: "qqq", Part: 1}, ASB: repo.AppSubBody{B: []byte("\r\n")},
+			},
+			sc: repo.StoreChange{
+				A: repo.Change,
+				To: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: true}: {
+						true: {
+							D: repo.Disposition{
+								H: []byte("\r\n"),
+							},
+							B: repo.BeginningData{
+								Part: 1,
+							},
+							E: repo.Probably,
+						},
+					},
+				},
+			},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{
+									Part: 0,
+								},
+								E: repo.True,
+							},
+						},
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: true}: {
+							true: {
+								D: repo.Disposition{
+									H: []byte("\r\n"),
+								},
+								B: repo.BeginningData{
+									Part: 1,
+								},
+								E: repo.Probably,
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "AppSub, ASKG met, OD branch met",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{
+									Part: 0,
+								},
+								E: repo.Probably,
+							},
+						},
+					},
+				},
+			},
+			d: &repo.AppSub{
+				ASH: repo.AppSubHeader{TS: "qqq", Part: 1}, ASB: repo.AppSubBody{B: []byte("\r\n")},
+			},
+			sc: repo.StoreChange{
+				A: repo.Change,
+				From: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{
+								Part: 0,
+							},
+							E: repo.Probably,
+						},
+					},
+				},
+				To: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{
+								Part: 0,
+							},
+							E: repo.Probably,
+						},
+						true: {
+							D: repo.Disposition{
+								H: []byte("\r\n"),
+							},
+							B: repo.BeginningData{
+								Part: 1,
+							},
+							E: repo.Probably,
+						},
+					},
+				},
+			},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{
+									Part: 0,
+								},
+								E: repo.Probably,
+							},
+							true: {
+								D: repo.Disposition{
+									H: []byte("\r\n"),
+								},
+								B: repo.BeginningData{
+									Part: 1,
+								},
+								E: repo.Probably,
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "B() == repo.False & E() == repo.Probably",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{Part: 0},
+								E: repo.Probably,
+							},
+							true: {
+								D: repo.Disposition{
+									H: []byte("\r\n"),
+								},
+								B: repo.BeginningData{Part: 1},
+								E: repo.Probably,
+							},
+						},
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
+							true: {
+								D: repo.Disposition{
+									H: []byte("\r\nb"),
+								},
+								B: repo.BeginningData{Part: 2},
+								E: repo.Probably,
+							},
+						},
+					},
+				},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.True, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("bPrefixbRoot\r\nContent-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain\r\n\r\nazaza")},
+			},
+			sc: repo.StoreChange{
+				A: repo.Change,
+				From: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{Part: 0},
+							E: repo.Probably,
+						},
+						true: {
+							D: repo.Disposition{
+								H: []byte("\r\n"),
+							},
+							B: repo.BeginningData{Part: 1},
+							E: repo.Probably,
+						},
+					},
+					{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: true}: {
+						true: {
+							D: repo.Disposition{
+								H: []byte("\r\nb"),
+							},
+							B: repo.BeginningData{Part: 2},
+							E: repo.Probably,
+						},
+					},
+				},
+				To: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "bob",
+								FileName: "long.txt",
+							},
+							B: repo.BeginningData{Part: 2},
+							E: repo.Probably,
+						},
+						true: {
+							D: repo.Disposition{
+								H: []byte("\r\nb"),
+							},
+							B: repo.BeginningData{Part: 2},
+							E: repo.Probably,
+						},
+					},
+				},
+			},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "bob",
+									FileName: "long.txt",
+								},
+								B: repo.BeginningData{Part: 2},
+								E: repo.Probably,
+							},
+							true: {
+								D: repo.Disposition{
+									H: []byte("\r\nb"),
+								},
+								B: repo.BeginningData{Part: 2},
+								E: repo.Probably,
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "B() == repo.True & E() == repo.False, askd is not met",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
+			},
+			sc: repo.StoreChange{
+				A: repo.Buffer,
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 1, B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("azaza")},
+			},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
+					{TS: "qqq"}: {
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 1, B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+					},
+				},
+			},
+		},
+
+		{
+			name: "sc.KA == Remove",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{
+									Part: 0,
+								},
+								E: repo.True,
+							},
+						},
+					},
+				},
+			},
+			sc: repo.StoreChange{
+				A: repo.Remove,
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 1, B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("azaza")},
+			},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
+			},
+		},
+
+		{
+			name: "B() == repo.True & E() == repo.True, part matched, disposition is filled",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{
+									Part: 0,
+								},
+								E: repo.True,
+							},
+						},
+					},
+				},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 1, B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazaza")},
+			},
+			sc: repo.StoreChange{
+				A: repo.Change,
+				From: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{
+								Part: 0,
+							},
+							E: repo.True,
+						},
+					},
+				},
+				To: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{
+								Part: 0,
+							},
+							E: repo.True,
+						},
+					},
+				},
+			},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{
+									Part: 0,
+								},
+								E: repo.True,
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "B() == repo.True & E() == repo.True, part matched, disposition is not filled",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H: []byte("Content-Disposition: form-data; name=\"alice\"; file"),
+								},
+								B: repo.BeginningData{
+									Part: 0,
+								},
+								E: repo.True,
+							},
+						},
+					},
+				},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 1, B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("name=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazaza")},
+			},
+			sc: repo.StoreChange{
+				A: repo.Change,
+				From: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H: []byte("Content-Disposition: form-data; name=\"alice\"; file"),
+							},
+							B: repo.BeginningData{
+								Part: 0,
+							},
+							E: repo.True,
+						},
+					},
+				},
+				To: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{
+								Part: 0,
+							},
+							E: repo.True,
+						},
+					},
+				},
+			},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{
+									Part: 0,
+								},
+								E: repo.True,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, v := range tt {
+		s.Run(v.name, func() {
+			v.store.Act(v.d, v.sc)
+
+			s.Equal(v.wantStore, v.store)
 		})
 	}
 }

@@ -293,7 +293,7 @@ func Slicer(b []byte, bou Boundary) (AppPieceUnit, []AppPieceUnit, AppSub) {
 
 	aphb := NewAppPieceHeader()
 	apbb := NewAppPieceBodyEmpty()
-	aphb.SetB(true)
+	aphb.SetB(True)
 
 	if bytes.Contains(b, boundaryMiddle) {
 		aphb.SetE(False)
@@ -315,7 +315,7 @@ func Slicer(b []byte, bou Boundary) (AppPieceUnit, []AppPieceUnit, AppSub) {
 			for i := 0; i < boundNum-1; i++ {
 
 				aph := NewAppPieceHeader()
-				aph.SetB(false)
+				aph.SetB(False)
 				aph.SetE(False)
 
 				ni := bytes.Index(b[1:], boundaryMiddle) + 1
@@ -330,7 +330,7 @@ func Slicer(b []byte, bou Boundary) (AppPieceUnit, []AppPieceUnit, AppSub) {
 		// last boundary piece
 		apbe := NewAppPieceBodyEmpty()
 		aphe := NewAppPieceHeader()
-		aphe.SetB(false)
+		aphe.SetB(False)
 		//logger.L.Infof("in repo.Slicer apue header %v, body: %q\n", aphe, apbe)
 		be := make([]byte, 0)
 		if len(b) > MaxHeaderLimit {
@@ -348,7 +348,7 @@ func Slicer(b []byte, bou Boundary) (AppPieceUnit, []AppPieceUnit, AppSub) {
 
 			if IsLastBoundary(ll, []byte(""), bou) { // last boundary in last line
 
-				aphe.SetE(Last)
+				aphe.SetE(False)
 				apume := NewAppPieceUnit(aphe, apbe)
 				//logger.L.Infof("in repo.Slicer apume header: %v, body: %q\n", apume.APH, apume.APB)
 
@@ -411,7 +411,7 @@ func Slicer(b []byte, bou Boundary) (AppPieceUnit, []AppPieceUnit, AppSub) {
 
 	default:
 		if len(b) < MaxLineLimit && (b[len(b)-1] == 13 || (b[len(b)-1] == 10 && b[len(b)-2] == 13)) {
-			aphb.SetE(Last)
+			aphb.SetE(False)
 			apbb.SetBody(b)
 
 			apub := NewAppPieceUnit(aphb, apbb)
@@ -435,7 +435,7 @@ func Slicer(b []byte, bou Boundary) (AppPieceUnit, []AppPieceUnit, AppSub) {
 				apbb.SetBody(b[:len(b)-len(ll)])
 			}
 			if IsLastBoundary(ll, []byte(""), bou) { // last boundary in last line
-				aphb.SetE(Last)
+				aphb.SetE(False)
 				apub := NewAppPieceUnit(aphb, apbb)
 				//logger.L.Infof("in repo.Slicer last line apub header %v, body: %q\n", apub.APH, apub.APB)
 
@@ -1619,6 +1619,7 @@ func GetHeaderLines(b []byte, bou Boundary) ([]byte, error) {
 					return resL, nil
 				}
 			}
+
 			return nil, fmt.Errorf("in repo.GetHeaderLines no header found")
 		}
 	}
@@ -1703,7 +1704,7 @@ func GetHeaderLines(b []byte, bou Boundary) ([]byte, error) {
 			return resL, fmt.Errorf("in repo.GetHeaderLines header \"%s\" is ending part", resL)
 		}
 
-		if IsCTLeft(l0) { // on ending part is impossible, on beginning part <-CT + 2 * CRLF + rand
+		if IsCTLeft(l0) && len(l1) == 0 { // on ending part is impossible, on beginning part <-CT + 2 * CRLF + rand
 			resL = append(l0, []byte("\r\n\r\n")...)
 			return resL, fmt.Errorf("in repo.GetHeaderLines header \"%s\" is ending part", resL)
 		}
@@ -1713,8 +1714,10 @@ func GetHeaderLines(b []byte, bou Boundary) ([]byte, error) {
 	default: // CD full insufficient + CRLF + CT full + 2*CRLF || CD full sufficient + 2*CRLF + rand + CRLF
 
 		l0 := b[:bytes.Index(b, []byte("\r\n"))]
+		//logger.L.Infof("in repo.GetHeaderLines l0: %q, Sufficiency(l0) == %d\n", l0, Sufficiency(l0))
 		//logger.L.Infof("in repo.GetHeaderLines l0: %q, EndingOf(GenBoundary(bou)[2:], l0): %t\n", l0, EndingOf(GenBoundary(bou)[2:], l0))
 		l1 := b[RepeatedIntex(b, []byte("\r\n"), 1)+2 : RepeatedIntex(b, []byte("\r\n"), 2)]
+		//logger.L.Infof("in repo.GetHeaderLines l1: %q, IsCTFull(l1) == %t\n", l1, IsCTFull(l1))
 		l2 := b[RepeatedIntex(b, []byte("\r\n"), 2)+2 : RepeatedIntex(b, []byte("\r\n"), 3)]
 
 		//logger.L.Infof("in repo.GetHeaderLines l0: %q,EndingOf(append(GenBoundary(bou)[2:], []byte(\"\r\n\")...)? %t, l1: %q, Sufficiency(l1) == Insufficient? %t, l2: %q, IsCTFull? %t\n", l0, EndingOf(append(GenBoundary(bou)[2:], []byte("\r\n")...), l0), l1, Sufficiency(l1) == Insufficient, l2, IsCTFull(l2))
@@ -1732,6 +1735,15 @@ func GetHeaderLines(b []byte, bou Boundary) ([]byte, error) {
 					return resL, fmt.Errorf("in repo.GetHeaderLines header \"%s\" is ending part", resL)
 				}
 			}
+		}
+		if Sufficiency(l0) == Insufficient &&
+			IsCTFull(l1) {
+			resL = append(resL, l0...)
+			resL = append(resL, []byte("\r\n")...)
+			resL = append(resL, l1...)
+			resL = append(resL, []byte("\r\n\r\n")...)
+
+			return resL, nil
 		}
 		if len(l0) == 0 { // on ending part is impossible, on beginning part: CRLF + CDsuf + 2*CRLF + rand || CRLF + CDinsuf + CRLF + CT + 2*CRLF + rand || CRLF + CT + 2*CRLF + rand || CRLF + rand // 2*CRLF + rand
 			resL = append(l0, []byte("\r\n")...)

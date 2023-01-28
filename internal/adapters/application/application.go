@@ -13,12 +13,10 @@ import (
 )
 
 type AppService struct {
-	chanIn  chan repo.AppFeederUnit
-	chanOut chan []repo.AppDistributorUnit
-	buf     []repo.AppPieceUnit
-	wg      sync.WaitGroup
-	mp      map[PieceKey][]repo.AppPieceUnit
-	mpLock  sync.Mutex
+	chanIn   chan repo.AppFeederUnit
+	chanOut  chan []repo.AppDistributorUnit
+	mpLock   sync.Mutex
+	mpRWLock sync.RWMutex
 }
 
 type PieceKey struct {
@@ -58,14 +56,16 @@ func NewAppService() AppService {
 	return AppService{
 		chanIn:  make(chan repo.AppFeederUnit, 10),
 		chanOut: make(chan []repo.AppDistributorUnit, 10),
-		mp:      make(map[PieceKey][]repo.AppPieceUnit, 0),
-		wg:      sync.WaitGroup{},
 	}
 }
 
 type Application interface {
 	Do()
 	AddToFeeder(repo.ReceiverUnit)
+	//Compute(repo.DataPiece, repo.Presense, repo.Boundary) (repo.AppDistributorUnit, repo.StoreChange, error)
+	HandleBuffer(repo.DataPiece, repo.Boundary) ([]repo.AppDistributorUnit, []error)
+	//	CalcHeader(repo.DataPiece, repo.StoreChange) repo.AppDistributorHeader
+	//CalcBody(repo.DataPiece, repo.Boundary) (repo.AppDistributorBody, error)
 }
 
 func (a *App) Do() {
@@ -114,17 +114,20 @@ func (a *App) Work(i int) {
 
 			a.S.Inc(askg, 1)
 
-			go a.HandleOrdered(&b, afu.R.H.Voc.Boundary, i)
+			//go a.HandleOrdered(&b, afu.R.H.Voc.Boundary, i)
+			go a.HandleSmart(&b, afu.R.H.Voc.Boundary, i)
 		}
 
 		a.S.Inc(askg, len(m))
 		for j := range m {
-			go a.HandleOrdered(&m[j], afu.R.H.Voc.Boundary, i)
+			//go a.HandleOrdered(&m[j], afu.R.H.Voc.Boundary, i)
+			go a.HandleSmart(&m[j], afu.R.H.Voc.Boundary, i)
 		}
 
 		if !cmp.Equal(e, repo.AppSub{}) { // No uncertain sub piece
 			a.S.Inc(askg, 1)
-			go a.HandleOrdered(&e, afu.R.H.Voc.Boundary, i)
+			go a.HandleSmart(&e, afu.R.H.Voc.Boundary, i)
+			//go a.Handle(&e, afu.R.H.Voc.Boundary, i)
 		}
 		if afu.R.S.Signal == "EOF" {
 			logger.L.Errorf("in application.Work EOF\n")
@@ -151,58 +154,25 @@ func (a *App) Send() {
 	}
 }
 
-func (a *App) doHandle(d repo.DataPiece, bou repo.Boundary, i int) ([]repo.AppDistributorUnit, []error) {
+func (a *App) HandleSmart(d repo.DataPiece, bou repo.Boundary, i int) {
+	logger.L.Infof("in application.HandleSmart worker %d called Handle with parameters dataPiece header %v, body %q, bou %v\n", i, d.GetHeader(), d.GetBody(0), bou)
 
-	return Execute(a.S, d, bou)
-
-}
-
-func (a *App) HandleUnOrdered(d repo.DataPiece, bou repo.Boundary, i int) {
-	logger.L.Infof("in application.HandleUnOrdered worker %d called doHandle with parameters dataPiece header %v, body %q, bou %v\n", i, d.GetHeader(), d.GetBody(0), bou)
-
-	adus, errs := a.doHandle(d, bou, i)
+	adus, _ := a.Handle(d, bou, i)
 
 	//logger.L.Infof("in application.HandleUnOrdered worker %d issued adus:\n", i)
-	for j, v := range adus {
-		logger.L.Infof("in application.HandleUnOrdered worker %d issued adu j = %d, header %v, body %q\n", i, j, v.H, v.B.B)
-	}
-	//logger.L.Infof("in application.HandleUnOrdered worker %d issued errors:\n", i)
-	for j, v := range errs {
-		logger.L.Infof("in application.HandleUnOrdered worker %d issued error j = %d, error: %v\n", i, j, v)
-	}
-	logger.L.Infof("in application.HandleUnOrdered worker %d left counter = %d\n", i, a.S.Counter(repo.NewAppStoreKeyGeneral(d)))
+	/*	for j, v := range adus {
+				logger.L.Warnf("in application.HandleSmart worker %d issued adu j = %d, header %v, body %q\n", i, j, v.H, v.B.B)
+			}
+			//logger.L.Infof("in application.HandleUnOrdered worker %d issued errors:\n", i)
+
+		for j, v := range errs {
+			logger.L.Infof("in application.HandleSmart worker %d issued error j = %d, error: %v\n", i, j, v)
+		}
+	*/
+	//	logger.L.Warnf("in application.HandleSmart worker %d left counter = %d\n", i, a.S.Counter(repo.NewAppStoreKeyGeneralFromDataPiece(d)))
 	a.toChanOut(adus)
 }
 
-func (a *App) HandleOrdered(d repo.DataPiece, bou repo.Boundary, i int) {
-	a.A.mpLock.Lock()
-	defer a.A.mpLock.Unlock()
-	logger.L.Infof("in application.HandleOrdered worker %d called doHandle with parameters dataPiece header %v, body %q, bou %q\n", i, d.GetHeader(), d.GetBody(0), bou)
-
-	adus, errs := a.doHandle(d, bou, i)
-	/*if errE != nil {
-		for _, v := range errE {
-			logger.L.Errorf("in application.HandleOrdered worker %d made err: %v\n", i, v)
-		}
-
-	}
-	*/
-	//logger.L.Infof("in application.HandleOrdered worker %d issued adus:\n", i)
-	if len(adus) > 0 {
-		for j, v := range adus {
-			logger.L.Infof("in application.HandleOrdered worker %d issued adu %d) header %v, body %q\n", i, j, v.H, v.B.B)
-		}
-		a.toChanOut(adus)
-	}
-
-	//logger.L.Infof("in application.HandleOrdered worker %d issued errors:\n", i)
-	for j, v := range errs {
-		logger.L.Errorf("in application.HandleOrdered worker %d issued error %d) %v\n", i, j, v)
-
-	}
-	logger.L.Infof("in application.HandleOrdered worker %d left counter = %d\n", i, a.S.Counter(repo.NewAppStoreKeyGeneral(d)))
-
-}
 func NewPieceKeyFromAPU(apu repo.AppPieceUnit) PieceKey {
 	return PieceKey{
 		Part: apu.APH.Part,
@@ -210,166 +180,209 @@ func NewPieceKeyFromAPU(apu repo.AppPieceUnit) PieceKey {
 	}
 }
 
-// Making decisions based on AppPieceUnit parameters
-func Decide(d repo.DataPiece) []string {
-	decision := make([]string, 0)
+func (a *App) Handle(d repo.DataPiece, bou repo.Boundary, i int) ([]repo.AppDistributorUnit, []error) {
+	_, out, prepErrs, _, p, isSub := repo.AppDistributorUnit{}, make([]repo.AppDistributorUnit, 0), make([]error, 0), repo.Unordered, d.Part(), d.IsSub()
+	logger.L.Infof("worker %d invoked application.Handle for dataPiece with Part = %d which is sub %t\n", i, p, isSub)
 
-	if !d.B() && d.E() == repo.False { //no handling needed just unary send
-		decision = append(decision, "unary")
-		return decision
+	if d.B() == repo.False && d.E() == repo.False { // for unary transmition
+
+		adu := repo.NewAppDistributorUnitUnary(d, bou, repo.Message{})
+
+		//logger.L.Infof("in application.Handle worker %d made out %v\n", i, out)
+
+		a.A.mpRWLock.Lock()
+		defer a.A.mpRWLock.Unlock()
+
+		switch a.S.Dec(d) {
+		case repo.FirstAndLast:
+			adu.H.U.M.PreAction = repo.Start
+			adu.H.U.M.PostAction = repo.Finish
+		case repo.First:
+			adu.H.U.M.PreAction = repo.Start
+		case repo.Last:
+			adu.H.U.M.PostAction = repo.Finish
+		}
+
+		out = append(out, adu)
+
+		logger.L.Infof("in application.Handle worker %d for dataPiece with header %v, body %q ==> made out %v\n", i, d.GetHeader(), d.GetBody(0), out)
+
+		return out, prepErrs
+
 	}
-	decision = append(decision, "register")
 
-	decision = append(decision, "register buffer")
+	// for stream transmition
 
-	return decision
+	adub, header, bErr := CalcBody(d, bou)
+	//logger.L.Infof("in application.Handle 1 adub %q, header: %q\n", adub.B, header)
+	if bErr != nil {
+		//logger.L.Errorf("in application.Handle CalcBody returned err: %v\n", bErr)
+		prepErrs = append(prepErrs, bErr)
+	}
+	a.A.mpRWLock.RLock()
+	presense := a.S.Presense(d) //may be changed later
+	a.A.mpRWLock.RUnlock()
+	logger.L.Infof("in application.Handle worker %d for dataPiece with header %v, body %q ==> made 1 try presense.ASKG %t, presense.ASKD %t, presense.OB %t\n", i, d.GetHeader(), d.GetBody(0), presense.ASKG, presense.ASKD, presense.OB)
+
+	if (!d.IsSub() &&
+		(d.B() == repo.True && !presense.ASKD) ||
+		(d.B() == repo.False && d.E() == repo.Probably && !presense.OB)) ||
+		(d.IsSub() &&
+			!presense.OB) { //add case for AppSub with changing presense
+
+		a.A.mpRWLock.Lock()
+		presense = a.S.Presense(d)
+		logger.L.Infof("in application.Handle worker %d for dataPiece with header %v, body %q ==> made 2 try presense.ASKG %t, presense.ASKD %t, presense.OB %t\n", i, d.GetHeader(), d.GetBody(0), presense.ASKG, presense.ASKD, presense.OB)
+
+		sc, scErr := repo.NewStoreChange(d, presense, bou)
+		logger.L.Infof("in application.Handle for dataPiece with header %v, body %q ==> made sc %v, scRrr: %v\n", d.GetHeader(), d.GetBody(0), sc, scErr)
+
+		if (bErr == nil && scErr != nil) ||
+			(bErr != nil && scErr != nil && scErr.Error() != bErr.Error()) {
+			prepErrs = append(prepErrs, scErr)
+		}
+
+		defer a.A.mpRWLock.Unlock()
+		return a.doHandle(d, sc, adub, header, bou, prepErrs)
+
+	}
+	sc, scErr := repo.NewStoreChange(d, presense, bou)
+	//logger.L.Infof("in application.Handle sc %v, err: %v\n", sc, scErr)
+	logger.L.Infof("in application.Handle worker %d for dataPiece with header %v, body %q ==> made sc %v, scRrr: %v\n", i, d.GetHeader(), d.GetBody(0), sc, scErr)
+
+	if (bErr == nil && scErr != nil) ||
+		(bErr != nil && scErr != nil && scErr.Error() != bErr.Error()) {
+		//logger.L.Errorf("in application.Handle NewStoreChange returned err: %v\n", bErr)
+		prepErrs = append(prepErrs, scErr)
+	}
+
+	a.A.mpRWLock.Lock()
+	defer a.A.mpRWLock.Unlock()
+
+	return a.doHandle(d, sc, adub, header, bou, prepErrs)
 }
 
-func Execute(s store.Store, d repo.DataPiece, bou repo.Boundary) ([]repo.AppDistributorUnit, []error) {
-	askg := repo.NewAppStoreKeyGeneral(d)
-	//	logger.L.Infof("application.Execute invoked with d header: %v, s.C = %d\n", d.GetHeader(), s.Counter(askg))
-	out, errs := make([]repo.AppDistributorUnit, 0), make([]error, 0)
-	if !d.B() && d.E() == repo.False { //no handling needed just unary send no message
+// returns adus and errors based on dataPiece and store states
+func (a *App) doHandle(d repo.DataPiece, sc repo.StoreChange, adub repo.AppDistributorBody, header []byte, bou repo.Boundary, prepErrs []error) ([]repo.AppDistributorUnit, []error) {
 
-		s.Dec(askg)
-		//logger.L.Errorf("in application.Execute dataPiece with body %q decrementing and counter = %d\n", d.GetBody(0), s.Counter(askg))
-		out = append(out, repo.NewAppDistributorUnitUnary(d, bou, repo.Message{}))
-		if s.Counter(askg) >= 2 {
-			return out, errs
-		}
-		if s.Counter(askg) == 1 {
-			adusFromBuffer, errsReg := s.RegisterBuffer(bou)
-			out = append(out, adusFromBuffer...)
-			errs = append(errs, errsReg...)
+	adus, errs, o := make([]repo.AppDistributorUnit, 0), prepErrs, repo.Unordered
+	p := d.Part()
 
-			return out, errs
-		}
+	logger.L.Infof("in application.doHandle handling p = %d\n", p)
 
+	if sc.A != repo.Buffer {
+
+		o = a.S.Dec(d)
+		logger.L.Infof("in application.doHandle for apu with header %v got order = %d\n", d.GetHeader(), o)
 	}
-	if !d.B() && d.E() == repo.Last { //no handling needed just unary send with message "last". Need to register
-		//logger.L.Infof("in application.Execute dataPiece with body %q is last and counter = %d\n", d.GetBody(0), s.Counter(askg))
-		if s.Counter(askg) == 1 {
 
-			adu := repo.NewAppDistributorUnitUnary(d, bou, repo.Message{PostAction: repo.Finish})
-			//logger.L.Infof("in application.Execute dataPiece with body %q became the last and made adu with header = %v, body: %q\n", d.GetBody(0), adu.H, adu.B.B)
-			out = append(out, adu)
-			s.Dec(askg)
-			//logger.L.Warnf("in application.Execute for Last piece counter == 1 and after dec c = %d\n", s.Counter())
+	a.S.Act(d, sc)
 
-			return out, errs
-		}
-		adu, err := s.Register(d, bou)
-		//logger.L.Infof("in application.Execute dataPiece with body %q is last and counter = %d have been registered with error %v\n", d.GetBody(0), s.Counter(askg), err)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if !cmp.Equal(adu, repo.AppDistributorUnit{}) {
-			out = append(out, adu)
-		}
-		return out, errs
-
+	if len(sc.From[repo.NewAppStoreKeyDetailed(d)]) == 2 && len(header) == 0 { // dataPiece after forked askd
+		adub.B = append(sc.From[repo.NewAppStoreKeyDetailed(d)][true].D.H, adub.B...)
 	}
-	// stream piece handling
-	adu, err := s.Register(d, bou)
-	//logger.L.Infof("in application.Execute Register returned adu: header: %v, body: %q, error: %v, s.C: %v\n", adu.H, adu.B.B, err, s.Counter(askg))
-	if !cmp.Equal(adu, repo.AppDistributorUnit{}) ||
-		(err != nil &&
-			cmp.Equal(adu, repo.AppDistributorUnit{}) &&
-			strings.Contains(err.Error(), "double-meaning")) ||
-		(err != nil &&
-			cmp.Equal(adu, repo.AppDistributorUnit{}) &&
-			strings.Contains(err.Error(), "is not full")) {
 
-		if !cmp.Equal(adu, repo.AppDistributorUnit{}) {
-			out = append(out, adu)
-		}
+	logger.L.Infof("in application.doHandle len(adub.B) = %d\n", len(adub.B))
 
-		s.Dec(askg)
-		//logger.L.Errorf("in application.Execute because of %q counter decremented and became %d", adu.B.B, s.Counter(askg))
+	if !d.IsSub() &&
+		(sc.A != repo.Buffer && len(adub.B) != 0) { // dataPieces with matched parts
+
+		aduh := CalcHeader(d, sc, o)
+		adu := repo.NewAppDistributorUnit(aduh, adub)
+		logger.L.Infof("in application.doHandle for apu with header %v got adu header: %v, body: %q\n", d.GetHeader(), adu.H, adu.B.B)
+		adus = append(adus, adu)
 	}
+
+	//logger.L.Infof("in application.doHandle sc = %v, IsPartChanged(sc) %t\n", sc, repo.IsPartChanged(sc))
+	if repo.IsPartChanged(sc) {
+		//logger.L.Infoln("in application.doHandle got into buffer")
+		adusFromBuffer, errsFromBuffer := a.HandleBuffer(d, bou)
+		adus = append(adus, adusFromBuffer...)
+		errs = append(errs, errsFromBuffer...)
+	}
+
+	return adus, errs
+}
+
+func CalcBody(d repo.DataPiece, bou repo.Boundary) (repo.AppDistributorBody, []byte, error) {
+	var err error
+	b := d.GetBody(0)
+	adub, header := repo.AppDistributorBody{}, make([]byte, 0)
+	if d.IsSub() {
+		return adub, b, nil
+	}
+	header, err = d.H(bou)
+	logger.L.Infof("in application.CalcHeader header %q, err %v\n", header, err)
 	if err != nil {
-		//logger.L.Errorf("in application.Execute Register returned error: %v, s.Counter(askg) = %d\n", err, s.Counter(askg))
-		errs = append(errs, err)
-		if (strings.Contains(err.Error(), "finished") && s.Counter(askg) > 1) ||
-			strings.Contains(err.Error(), "unknown") ||
-			strings.Contains(err.Error(), "added to buffer") ||
-			strings.Contains(err.Error(), "but got") {
-
-			//logger.L.Warnf("in application.Execute err.Error %q caused return\n", err.Error())
-			return out, errs
-
+		if !strings.Contains(err.Error(), "is ending part") &&
+			!strings.Contains(err.Error(), "no header found") {
+			return repo.AppDistributorBody{}, d.GetBody(repo.MaxHeaderLimit), err
 		}
-
-		//logger.L.Warnln("in application.Execute checking buffer")
-
-		//logger.L.Errorf("in application.Execute dataPiece with body %q decrementing and counter = %d\n", d.GetBody(0), s.Counter(askg))
-		adusFromBuffer, errsReg := s.RegisterBuffer(bou)
-		//test not adding empty structs
-
-		if len(adusFromBuffer) > 0 {
-			for _, v := range adusFromBuffer {
-				if !cmp.Equal(v, repo.AppDistributorUnit{}) ||
-					(err != nil &&
-						cmp.Equal(v, repo.AppDistributorUnit{}) &&
-						strings.Contains(err.Error(), "double-meaning")) {
-
-					if !cmp.Equal(v, repo.AppDistributorUnit{}) {
-						out = append(out, v)
-					}
-
-					//s.Dec(askg)
-					//logger.L.Errorf("in application.Execute because of %q counter decremented and became %d", adu.B.B, s.Counter(askg))
-				}
-			}
-
-		}
-
-		if len(errsReg) > 0 {
-			for _, v := range errsReg {
-				if v != nil {
-					errs = append(errs, v)
-				}
-			}
-
-		}
-
-		return out, errs
-
 	}
-	//logger.L.Warnln("in application.Execute checking buffer")
-	//logger.L.Warnf("in application.Execute dataPiece with body %q decrementing and counter = %d\n", d.GetBody(0), s.Counter(askg))
-	adusFromBuffer, errsReg := s.RegisterBuffer(bou)
-	//logger.L.Infoln("in application.Execute adusFromBuffer: ")
-	/*
-		for i, v := range adusFromBuffer {
-			logger.L.Infof("in application.Execute %d ---- %v===%q\n", i, v.H, v.B.B)
-		}
-	*/
-	if len(adusFromBuffer) > 0 {
-		for _, v := range adusFromBuffer {
-			if !cmp.Equal(v, repo.AppDistributorUnit{}) {
-				out = append(out, v)
-				//s.Dec(askg)
-			}
-		}
+
+	adub = repo.AppDistributorBody{B: b}
+
+	if len(header) > 0 && len(header) < len(b) {
+		adub = repo.AppDistributorBody{B: d.GetBody(0)[len(header):]}
+		return adub, header, nil
+	}
+	//logger.L.Infof("in application.CalcHeader body %q\n", d.GetBody(0))
+
+	return adub, header, nil
+}
+
+func CalcHeader(d repo.DataPiece, sc repo.StoreChange, o repo.Order) repo.AppDistributorHeader {
+	aduh, askd, fo, fi, f, pre, post := repo.AppDistributorHeader{}, repo.NewAppStoreKeyDetailed(d), "", "", repo.FiFo{}, repo.None, repo.None
+	if d.IsSub() {
+		return aduh
+	}
+	//logger.L.Infof("in application.CalcHeader from dataPiece header %v, body %q, sc %v, o: %v\n", d.GetHeader(), d.GetBody(0), sc, o)
+	//logger.L.Infof("in application.CalcHeader d header %v, sc.To: %v, askd: %v\n", d.GetHeader(), sc.To, askd)
+	askd = askd.IncPart()
+	//fo, fi := sc.To[askd][false].D.FormName, sc.To[askd][false].D.FileName
+	for i := range sc.To {
+		fo, fi = sc.To[i][false].D.FormName, sc.To[i][false].D.FileName
+		break
+	}
+	f = repo.NewFiFo(fo, fi)
+
+	if sc.A == repo.Change && d.B() == repo.False && o == repo.First {
+
+		pre = repo.Start
+	}
+
+	if sc.A == repo.Change && d.B() == repo.False && o != repo.First {
+
+		pre = repo.Open
+	}
+
+	if sc.A == repo.Change && d.B() == repo.True {
+
+		pre = repo.Continue
+	}
+
+	if sc.A == repo.Change && d.E() == repo.False && o == repo.Last {
+
+		post = repo.Finish
+	}
+
+	if sc.A == repo.Change && d.E() == repo.False && o != repo.Last {
+
+		post = repo.Close
+	}
+	if sc.A == repo.Change && d.E() != repo.False {
+
+		post = repo.Continue
 
 	}
 
-	if len(errsReg) > 0 {
-		for _, v := range errsReg {
-			if v != nil {
-				errs = append(errs, v)
-			}
-		}
+	m := repo.NewMessage(pre, post)
+	//logger.L.Infof("in application.CalcHeader m: %v\n", m)
+	aduh = repo.NewAppDistributorHeaderStream(d, f, m)
 
-	}
-	//logger.L.Infof("in application.Execute after all counter = %d\n", s.Counter(askg))
-	//logger.L.Infoln("in application.Execute after all out")
-	/*
-		for i, v := range out {
-			logger.L.Infof("in application.Execute out %d has header %v, body %q\n", i, v.H, v.B)
-		}
-	*/
-	return out, errs
+	return aduh
+}
 
+func (a *App) HandleBuffer(d repo.DataPiece, bou repo.Boundary) ([]repo.AppDistributorUnit, []error) {
+	return a.S.RegisterBuffer(d, bou)
 }

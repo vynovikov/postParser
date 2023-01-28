@@ -1,6 +1,8 @@
 package repo
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"postParser/internal/adapters/driven/grpc/pb"
 	"strings"
@@ -254,14 +256,40 @@ func NewMultipartHeader(n int) MultipartHeader {
 type StreamKey struct {
 	TS   string
 	Part int
+	N    bool // is created on current part
 	//Remove bool
 }
 
-func NewStreamKey(ts string, part int) StreamKey {
+func NewStreamKey(ts string, part int, n bool) StreamKey {
 	return StreamKey{
 		TS:   ts,
 		Part: part,
+		N:    n,
 	}
+}
+func (sk StreamKey) ToTrue() StreamKey {
+	sk.N = true
+	return sk
+}
+func (sk StreamKey) ToFalse() StreamKey {
+	sk.N = false
+	return sk
+}
+func (sk StreamKey) Reverse() StreamKey {
+	sk.N = !sk.N
+	return sk
+}
+func (sk StreamKey) IncPart() StreamKey {
+	sk.Part++
+	return sk
+}
+func (sk StreamKey) DecPart() StreamKey {
+
+	if sk.Part > 0 {
+		sk.Part--
+		return sk
+	}
+	return sk // sk.Part == 0 remains unchanged
 }
 
 type FiFo struct {
@@ -276,49 +304,68 @@ func NewFiFo(fo, fi string) FiFo {
 	}
 }
 
-type action int
+type Action int
 
 const (
-	None     action = iota // start new stream or appending to last stream
+	None     Action = iota // initisl value
+	Start                  // start new stream and mark stream header as first
+	Open                   // start new stream, don't mart
+	Continue               // put data chunk into existing stream increment stream part
 	StopLast               // stop last stream, create new one
-	Stop                   // stop curreant stream after sending this fata
-	Finish                 // finish strean section after sending this data
+	Close                  // stop curreant stream after sending this fata
+	Finish                 // after sending data, mark data chunk as last, finish strean group
 
 )
 
 type Message struct {
 	S          string
-	PreAction  action
-	PostAction action
+	PreAction  Action
+	PostAction Action
 }
 
 func NewStreamMessage(m Message) Message {
 	return m
 }
+func NewMessage(pre, post Action) Message {
+	return Message{
+		PreAction:  pre,
+		PostAction: post,
+	}
+}
 
 type StreamData struct {
-	SK StreamKey          // Stream identifier
-	F  FiFo               // Form and File name
-	M  Message            // Control message
-	C  CurrentPieceHeader // Current part & ts
+	SK StreamKey // Stream identifier
+	F  FiFo      // Form and File name
+	M  Message   // Control message
 }
 type CurrentPieceHeader struct {
 	TS   string
 	Part int
 }
+type UnaryKey struct {
+	TS   string
+	Part int
+}
+
+func NewUnaryKey(ts string, p int) UnaryKey {
+	return UnaryKey{
+		TS:   ts,
+		Part: p,
+	}
+}
+
 type UnaryData struct {
-	TS string
-	F  FiFo               // Form and File name
-	M  Message            // Control message
-	C  CurrentPieceHeader // Current part & ts
+	UK UnaryKey
+	F  FiFo    // Form and File name
+	M  Message // Control message
 }
 type CloseData struct {
 	D []StreamKey // indexes to delete
 }
 
-func NewUnary(ts string, f FiFo, m Message) UnaryData {
+func NewUnary(uk UnaryKey, f FiFo, m Message) UnaryData {
 	return UnaryData{
-		TS: ts,
+		UK: uk,
 		F:  f,
 		M:  m,
 	}
@@ -345,12 +392,11 @@ func NewCurrentPieceHeader(ts string, p int) CurrentPieceHeader {
 	}
 }
 
-func NewStreamData(sk StreamKey, f FiFo, sm Message, cph CurrentPieceHeader) StreamData {
+func NewStreamData(sk StreamKey, f FiFo, sm Message) StreamData {
 	return StreamData{
 		SK: sk,
 		F:  f,
 		M:  sm,
-		C:  cph,
 	}
 }
 
@@ -359,6 +405,20 @@ func NewAppDistributorHeader(t comm, s StreamData, u UnaryData) AppDistributorHe
 		T: t,
 		S: s,
 		U: u,
+	}
+}
+
+func NewAppDistributorHeaderStream(d DataPiece, f FiFo, m Message) AppDistributorHeader {
+	return AppDistributorHeader{
+		T: ClientStream,
+		S: StreamData{
+			SK: StreamKey{
+				TS:   d.TS(),
+				Part: d.Part(),
+			},
+			F: f,
+			M: m,
+		},
 	}
 }
 
@@ -389,12 +449,11 @@ func NewAppDistributorUnit(h AppDistributorHeader, b AppDistributorBody) AppDist
 
 func NewDistributorUnitStream(ask AppStoreValue, d DataPiece, m Message) AppDistributorUnit {
 	//logger.L.Infof("repo.NewDistributorUnitStream invoked by d.GetBody()  = %q\n", d.GetBody(0))
-	sk := NewStreamKey(d.TS(), d.Part())
+	sk := NewStreamKey(d.TS(), d.Part(), false)
 	fifo := NewFiFo(ask.D.FormName, ask.D.FileName)
 	sm := m
-	cph := CurrentPieceHeader{}
 
-	sd := NewStreamData(sk, fifo, sm, cph)
+	sd := NewStreamData(sk, fifo, sm)
 	//logger.L.Infof("in repo.NewDistributorUnitFromStore sk = %v\n", sk)
 	adu := AppDistributorUnit{
 		H: NewAppDistributorHeader(ClientStream, sd, UnaryData{}),
@@ -407,12 +466,11 @@ func NewDistributorUnitStream(ask AppStoreValue, d DataPiece, m Message) AppDist
 }
 
 func NewDistributorUnitStreamEmpty(ask AppStoreValue, d DataPiece, m Message) AppDistributorUnit {
-	sk := NewStreamKey(d.TS(), d.Part())
+	sk := NewStreamKey(d.TS(), d.Part(), false)
 	fifo := NewFiFo("", "")
 	sm := NewStreamMessage(m)
-	cph := CurrentPieceHeader{}
 
-	sd := NewStreamData(sk, fifo, sm, cph)
+	sd := NewStreamData(sk, fifo, sm)
 	//logger.L.Infof("in repo.NewDistributorUnitFromStore sk = %v\n", sk)
 
 	return AppDistributorUnit{
@@ -421,19 +479,29 @@ func NewDistributorUnitStreamEmpty(ask AppStoreValue, d DataPiece, m Message) Ap
 }
 
 func NewAppDistributorUnitUnary(d DataPiece, bou Boundary, m Message) AppDistributorUnit {
+	//logger.L.Infof("repo.NewAppDistributorUnitUnary invoked with dataPiece header: %v, body: %q, bou: %q, message: %v\n", d.GetHeader(), d.GetBody(0), bou, m)
+	//b:=make([]byte,0)
 	h, err := d.H(bou)
-	if err != nil && !strings.Contains(err.Error(), "is ending part") {
+	if err != nil &&
+		!strings.Contains(err.Error(), "is ending part") {
+		return AppDistributorUnit{}
+	}
+	if len(h) >= len(d.GetBody(0)) {
 		return AppDistributorUnit{}
 	}
 
 	fo, fi := GetFoFi(h)
 	fifo := NewFiFo(fo, fi)
 
-	d.BodyCut(len(h))
+	uk := NewUnaryKey(d.TS(), d.Part())
+
+	//d.BodyCut(len(h))
+
+	//logger.L.Infof("in repo.NewAppDistributorUnitUnary fifo: %v, m: %v, body: %q\n", fifo, m, d.GetBody(0))
 
 	return AppDistributorUnit{
-		H: NewAppDistributorHeader(Unary, StreamData{}, NewUnary(d.TS(), fifo, m)),
-		B: NewDistributorBody(d.GetBody(0)),
+		H: NewAppDistributorHeader(Unary, StreamData{}, NewUnary(uk, fifo, m)),
+		B: NewDistributorBody(d.GetBody(0)[len(h):]),
 	}
 }
 
@@ -459,13 +527,12 @@ func (c *CallBoard) SetFileMame(f string) {
 	c.FileName = f
 }
 
-type probability int
+type disposition int
 
 const (
-	False probability = iota
+	False disposition = iota
 	True
 	Probably
-	Last
 )
 
 type comm int
@@ -487,8 +554,8 @@ const (
 type AppPieceHeader struct {
 	Part int
 	TS   string
-	B    bool        //is begin needed?
-	E    probability //is end needed?
+	B    disposition //is begin needed?
+	E    disposition //is end needed?
 }
 
 func NewAppPieceHeader() AppPieceHeader {
@@ -503,10 +570,10 @@ func (p *AppPieceHeader) SetPart(part int) {
 	p.Part = part
 }
 
-func (p *AppPieceHeader) SetB(b bool) {
+func (p *AppPieceHeader) SetB(b disposition) {
 	p.B = b
 }
-func (p *AppPieceHeader) SetE(e probability) {
+func (p *AppPieceHeader) SetE(e disposition) {
 	p.E = e
 }
 
@@ -667,6 +734,7 @@ func NewAppStoreKeyDetailed(d DataPiece) AppStoreKeyDetailed {
 			SK: StreamKey{
 				TS:   d.TS(),
 				Part: d.Part(),
+				//N:    true,
 			},
 			S: true,
 		}
@@ -674,6 +742,7 @@ func NewAppStoreKeyDetailed(d DataPiece) AppStoreKeyDetailed {
 	return AppStoreKeyDetailed{SK: StreamKey{
 		TS:   d.TS(),
 		Part: d.Part(),
+		//N:    true,
 	},
 		S: false,
 	}
@@ -685,11 +754,23 @@ func NewAppStoreKeyDetailed(d DataPiece) AppStoreKeyDetailed {
 		ask.D = d
 	}
 */
+func (ask AppStoreKeyDetailed) DecPart() AppStoreKeyDetailed {
+	return AppStoreKeyDetailed{
+		SK: StreamKey{
+			Part: ask.SK.Part - 1,
+			TS:   ask.SK.TS,
+			N:    ask.SK.N,
+		},
+		S: ask.S,
+	}
+}
+
 func (ask AppStoreKeyDetailed) IncPart() AppStoreKeyDetailed {
 	return AppStoreKeyDetailed{
 		SK: StreamKey{
 			Part: ask.SK.Part + 1,
 			TS:   ask.SK.TS,
+			N:    ask.SK.N,
 		},
 		S: ask.S,
 	}
@@ -700,6 +781,7 @@ func (ask AppStoreKeyDetailed) T() AppStoreKeyDetailed {
 		SK: StreamKey{
 			Part: ask.SK.Part,
 			TS:   ask.SK.TS,
+			N:    ask.SK.N,
 		},
 		S: true,
 	}
@@ -710,6 +792,7 @@ func (ask AppStoreKeyDetailed) F() AppStoreKeyDetailed {
 		SK: StreamKey{
 			Part: ask.SK.Part,
 			TS:   ask.SK.TS,
+			N:    ask.SK.N,
 		},
 		S: false,
 	}
@@ -758,33 +841,112 @@ func (a *AppStoreBufferIDs) GetIDs(askg AppStoreKeyGeneral) []int {
 	return make([]int, 0)
 }
 
-func NewAppStoreKeyGeneral(d DataPiece) AppStoreKeyGeneral {
+func NewAppStoreKeyGeneralFromDataPiece(d DataPiece) AppStoreKeyGeneral {
 	return AppStoreKeyGeneral{
 		TS: d.TS(),
+	}
+}
+func NewAppStoreKeyGeneralFromASKD(askd AppStoreKeyDetailed) AppStoreKeyGeneral {
+	return AppStoreKeyGeneral{
+		TS: askd.SK.TS,
 	}
 }
 
 type AppStoreValue struct {
 	D Disposition
 	B BeginningData
-	E probability
+	E disposition
+}
+
+func NewAppStoreValue(d DataPiece, bou Boundary) (AppStoreValue, error) {
+	//logger.L.Infof("repo.NewAppStoreValue invoked with datapiece header: %v, body %q, bou %q\n", d.GetHeader(), d.GetBody(0), bou)
+	asv := AppStoreValue{}
+
+	header, err := d.H(bou)
+	//logger.L.Infof("in repo.NewAppStoreValue header: %q\n", header)
+	asv.B = NewBeginningData(d.Part())
+	asv.E = d.E()
+	if err != nil {
+
+		if !strings.Contains(err.Error(), "is not full") &&
+			!strings.Contains(err.Error(), "is ending part") {
+			return asv, err
+		}
+		if strings.Contains(err.Error(), "is not full") {
+			asv.D.H = header
+			return asv, err
+		}
+	}
+	asv.D.H = header
+	asv.D.FormName, asv.D.FileName = GetFoFi(asv.D.H)
+
+	return asv, nil
+}
+
+func CompleteAppStoreValue(asv AppStoreValue, d DataPiece, bou Boundary) (AppStoreValue, error) {
+	ci := 0
+	header, err := d.H(bou)
+	//logger.L.Infof("in repo.CompleteAppStoreValue initial asv: %q, header: %q, err: %v\n", asv, header, err)
+	if err != nil {
+		/*
+			logger.L.Errorf("in repo.CompleteAppStoreValue err: %v, contains? %t\n", err, strings.Contains(err.Error(), "no header found"))
+
+			logger.L.Errorf("in repo.CompleteAppStoreValue first %t second %t third %t\n",
+				!strings.Contains(err.Error(), "is not full"),
+				!strings.Contains(err.Error(), "is ending part"),
+				!strings.Contains(err.Error(), "no header found"))
+		*/
+		if !strings.Contains(err.Error(), "is not full") &&
+			!strings.Contains(err.Error(), "is ending part") &&
+			!strings.Contains(err.Error(), "no header found") {
+			return asv, err
+		}
+		if strings.Contains(err.Error(), "no header found") {
+			//logger.L.Infoln("in repo.CompleteAppStoreValue no header found")
+			return AppStoreValue{}, err
+		}
+	}
+	ci = bytes.Index(header, []byte("Content-Disposition"))
+	//logger.L.Infof("in repo.CompleteAppStoreValue ci = %d\n", ci)
+
+	if ci > 0 {
+
+		if IsBoundary(asv.D.H, header, bou) {
+
+			//logger.L.Infof("in repo.CompleteAppStoreValue header[ci:]: %q\n", header[ci:])
+
+			raw := append(asv.D.H, header...)
+
+			//			logger.L.Infof("in repo.CompleteAppStoreValue asv.D.H: %q\n",raw)
+			asv.D.H = raw[bytes.Index(raw, []byte("Content-Disposition")):]
+
+			asv.D.FormName, asv.D.FileName = GetFoFi(asv.D.H)
+
+			asv.E = d.E()
+
+			return asv, nil
+		}
+		return asv, err
+	}
+	asv.D.H = append(asv.D.H, header...)
+	asv.D.FormName, asv.D.FileName = GetFoFi(asv.D.H)
+
+	return asv, err
 }
 
 type BeginningData struct {
-	TS        string
-	BeginPart int
+	Part int
 }
 
-func NewBeginningData(ts string, bp int) BeginningData {
+func NewBeginningData(bp int) BeginningData {
 	return BeginningData{
-		TS:        ts,
-		BeginPart: bp,
+		Part: bp,
 	}
 }
 
 type DataPiece interface {
-	B() bool
-	E() probability
+	B() disposition
+	E() disposition
 	L(Boundary) ([][]byte, int, error)
 	LL() int
 	H(Boundary) ([]byte, error)
@@ -798,11 +960,11 @@ type DataPiece interface {
 	Prepend([]byte)
 }
 
-func (a *AppPieceUnit) B() bool {
+func (a *AppPieceUnit) B() disposition {
 	return a.APH.B
 }
 
-func (a *AppPieceUnit) E() probability {
+func (a *AppPieceUnit) E() disposition {
 	return a.APH.E
 }
 
@@ -827,7 +989,7 @@ func (a *AppPieceUnit) L(bou Boundary) ([][]byte, int, error) {
 	//lines, cut, err := make([][]byte, 0), 0, errors.New("")
 	limit := Min(len(a.APB.B), MaxHeaderLimit)
 
-	if a.APH.B {
+	if a.APH.B == True {
 
 		//logger.L.Infof("in repo.L trying to get lines from : %q\n", a.APB.B)
 
@@ -852,6 +1014,7 @@ func (a *AppPieceUnit) Prepare(ts string, p int) {
 
 }
 
+// Cuts fisrt c bytes from dataPirce's body
 func (a *AppPieceUnit) BodyCut(c int) {
 	//logger.L.Infof("repo.BodyCut for dataPiece's body %q of length %d invoked with parameters c = %d\n", a.APB.B, len(a.APB.B), c)
 	if c < len(a.APB.B)-1 {
@@ -885,22 +1048,19 @@ func (a *AppPieceUnit) GetHeader() string {
 	return fmt.Sprintf("%v", a.APH)
 }
 func (a *AppPieceUnit) H(bou Boundary) ([]byte, error) {
-	hbs := make([]byte, 0)
 
 	b := a.GetBody(Min(a.LL(), MaxHeaderLimit))
 	//logger.L.Infof("in repo.H b: %q", b)
-
-	hbs = append(hbs)
 
 	return GetHeaderLines(b, bou)
 
 }
 
-func (a *AppSub) B() bool {
-	return false
+func (a *AppSub) B() disposition {
+	return False
 }
 
-func (a *AppSub) E() probability {
+func (a *AppSub) E() disposition {
 	return Probably
 }
 func (a *AppSub) L(bou Boundary) ([][]byte, int, error) {
@@ -939,4 +1099,321 @@ func (a *AppSub) SetHeader(ash AppSubHeader) {
 
 func (a *AppSub) H(bou Boundary) ([]byte, error) {
 	return a.ASB.B, nil
+}
+
+type Presense struct {
+	ASKG bool                                           // is askg met
+	ASKD bool                                           // is askd met
+	OB   bool                                           // is true branch met
+	GR   map[AppStoreKeyDetailed]map[bool]AppStoreValue // general key record
+}
+
+func NewPresense(askg, askd, tb bool, gr map[AppStoreKeyDetailed]map[bool]AppStoreValue) Presense {
+	return Presense{
+		ASKG: askg,
+		ASKD: askd,
+		OB:   tb,
+		GR:   gr,
+	}
+}
+
+type DetailedRecord struct {
+	ASKD AppStoreKeyDetailed
+	DR   map[bool]AppStoreValue
+}
+
+func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) {
+	sc, _, asv, dr, gr, askd, ok, err := StoreChange{}, make([]AppStoreKeyDetailed, 0), AppStoreValue{}, make(map[bool]AppStoreValue), make(map[AppStoreKeyDetailed]map[bool]AppStoreValue), NewAppStoreKeyDetailed(d), false, errors.New("")
+
+	if d.B() == True {
+		if !p.ASKG {
+			sc.A = Buffer
+			return sc, fmt.Errorf("in repo.NewStoreChange TS \"%s\" is unknown", d.TS())
+		}
+		if !p.ASKD {
+			sc.A = Buffer
+			return sc, fmt.Errorf("in repo.NewStoreChange for given TS \"%s\", Part \"%d\" is unexpected", d.TS(), d.Part())
+		}
+		sc.From = p.GR
+
+		if asv, ok = p.GR[askd][false]; ok {
+
+			if asv.D.FormName == "" {
+				asv, err = CompleteAppStoreValue(asv, d, bou)
+				//logger.L.Infof("in repo.NewStoreChange asv: %q, error: %v", asv, err)
+				if err != nil {
+					if !strings.Contains(err.Error(), "is not full") &&
+						!strings.Contains(err.Error(), "is ending part") {
+						return sc, err
+					}
+
+				}
+			}
+			asv.E = d.E()
+			dr[false] = asv
+
+			switch len(p.GR) {
+			case 1:
+				if len(p.GR[askd]) == 2 {
+
+					sc.A = Change
+
+					m3t := p.GR[askd][true]
+					asv, err = CompleteAppStoreValue(m3t, d, bou)
+					//logger.L.Infof("in repo.NewStoreChange asv: %q, error: %v", asv, err)
+					if err != nil {
+						if strings.Contains(err.Error(), "no header found") { // no new asv
+
+							gr[askd.IncPart().F()] = dr
+							sc.To = gr
+
+							return sc, err
+						}
+					}
+					// got new asv
+
+					dr[false] = asv
+					gr[askd.IncPart().F()] = dr
+					sc.To = gr
+
+					return sc, nil
+				}
+				//logger.L.Infoln("strait case")
+
+				switch d.E() {
+				case False:
+					sc.A = Change
+					gr[askd.F()] = dr
+					sc.To = gr
+
+					return sc, nil
+
+				case True:
+					sc.A = Change
+					gr[askd.IncPart().F()] = dr
+					sc.To = gr
+
+					//logger.L.Infof("in repo.NewStoreChange true case sc: %v\n", sc)
+
+					return sc, nil
+
+				case Probably:
+					//logger.L.Warnln("in repo.NewStoreChange Probably case")
+
+					gr[askd.F()] = dr
+
+					sc.To = gr
+					sc.A = Change
+
+					return sc, nil
+				}
+
+			case 2: // detailed map has 2 records
+				sc.A = Change
+				m3t := p.GR[askd.T()]
+				dr[true] = m3t[true]
+
+				if len(p.GR[askd]) == 2 {
+
+					m3f := p.GR[askd.F()]
+
+					asv, err = CompleteAppStoreValue(m3t[true], d, bou)
+
+					if err != nil {
+
+						if strings.Contains(err.Error(), "no header found") { // no new asv
+
+							dr[false] = m3f[false]
+
+							gr[askd.IncPart().F()] = dr
+
+							sc.To = gr
+
+							return sc, err
+						}
+					}
+					dr[false] = asv
+
+					gr[askd.IncPart().F()] = dr
+
+					sc.To = gr
+
+					return sc, nil
+
+				}
+				gr[askd.IncPart().F()] = dr
+
+				sc.To = gr
+
+				return sc, nil
+			}
+		}
+	}
+
+	// d.B == False
+
+	asv.B.Part = d.Part()
+	asv.E = d.E()
+	sc.A = Change
+	sc.From = p.GR
+
+	if d.IsSub() { // dataPiece is AppSub
+
+		asv.D.H = d.GetBody(0)
+		dr[true] = asv
+
+		if m3f, ok := p.GR[askd.F()]; ok {
+			dr[false] = m3f[false]
+			//logger.L.Infof("in repo.NewStoreChange dr: %v\n", dr)
+			gr[askd.F().IncPart()] = dr
+			sc.To = gr
+			return sc, nil
+		}
+
+		gr[askd.T()] = dr
+		sc.To = gr
+		//logger.L.Infof("in repo.NewStoreChange sc: %v\n", sc)
+		return sc, nil
+
+	}
+	// dataPiece is AppPieceUnit
+
+	asv, err = NewAppStoreValue(d, bou)
+	//logger.L.Infof("in repo.NewStoreChange asv: %v, err: %v\n", asv, err)
+	if err != nil {
+		//logger.L.Errorf("in repo.NewStoreChange err: %v\n", err)
+		if !strings.Contains(err.Error(), "is not full") {
+			return sc, err
+		}
+	}
+	//logger.L.Infof("in repo.NewStoreChange asv = %v\n", asv)
+	dr[false] = asv
+
+	switch d.E() {
+	case Probably:
+		if p.OB {
+
+			dr[true] = p.GR[askd.T()][true]
+			gr[askd.IncPart()] = dr
+			sc.To = gr
+		} else {
+
+			gr[askd] = dr
+			sc.To = gr
+
+		}
+	case True:
+
+		//logger.L.Infof("in repo.NewStoreChange d.B == False, True case A = %d\n", sc.A)
+
+		//logger.L.Infof("in repo.NewStoreChange d.B == True, True case dr = %v\n", dr)
+		gr[askd.F().IncPart()] = dr
+		sc.To = gr
+		if err != nil {
+			if !strings.Contains(err.Error(), "is not full") {
+				return sc, err
+			}
+		}
+		//logger.L.Infof("in repo.NewStoreChange d.B == False, True case sc = %v\n", sc)
+		return sc, err
+
+		//sc.ASKD = NewAppStoreKeyDetailed(d)
+
+	case False:
+	}
+	//logger.L.Infof("in repo.NewStoreChange d.B == False, sc = %v\n", sc)
+	return sc, nil
+}
+
+/*
+// get slice of AppStoreKeyDetailed from gr, putting S == false at first
+func getFrom(gr map[AppStoreKeyDetailed]map[bool]AppStoreValue) map[AppStoreKeyDetailed]map[bool]AppStoreValue {
+
+		n, askd,from := 0, AppStoreKeyDetailed{}
+
+		if len(gr) == 0 {
+			return askds
+		}
+		if len(gr) == 1 {
+			for i := range gr {
+				askds = append(askds, i)
+			}
+			return askds
+		}
+		for i := range gr {
+
+			if n == 0 && i.S {
+				askd = i
+				n++
+				continue
+			}
+			if n == 1 && !i.S {
+				askds = append(askds, i)
+				askds = append(askds, askd)
+				return askds
+			}
+
+			askds = append(askds, i)
+			n++
+		}
+
+		//logger.L.Infof("in repo.getFrom askds: %v\n", askds)
+
+		return askds
+	}
+*/
+type StoreAction int
+
+const (
+	Buffer StoreAction = iota // store dataPiece in Buffer
+	Change                    // mutate store record
+	Delete                    // delete detailed record
+	Remove                    // delete general record. Should be seg an application.Handle based on s.Counter == 0
+
+)
+
+type StoreChange struct {
+	A    StoreAction
+	From map[AppStoreKeyDetailed]map[bool]AppStoreValue // deteiled map record to be changed
+	To   map[AppStoreKeyDetailed]map[bool]AppStoreValue // changed deteiled map record
+}
+
+type Counter struct {
+	Max int
+	Cur int
+}
+
+func NewCounter() Counter {
+	return Counter{}
+}
+
+type Order int
+
+const (
+	Unordered    Order = iota // tech value if max was decrenebted
+	First                     // first adu of the TS
+	Last                      // last adu of the TS
+	FirstAndLast              // first and last simultaneously
+	Intermediate              // not first and not last
+)
+
+func IsPartChanged(sc StoreChange) bool {
+	pFrom, pTo := 0, 0
+	if len(sc.From) == 0 && len(sc.To) == 1 {
+		for i := range sc.To {
+			if sc.To[i][i.S].E == Probably {
+				return false
+			}
+		}
+		return true
+	}
+	for i := range sc.From {
+		pFrom = i.SK.Part
+		break
+	}
+	for i := range sc.To {
+		pTo = i.SK.Part
+		break
+	}
+	return pTo == pFrom+1
 }

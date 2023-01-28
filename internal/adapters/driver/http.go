@@ -83,7 +83,7 @@ func (r *Receiver) Handle(conn net.Conn) {
 		}
 
 		//logger.L.Infof("Receiver.Handle made header: %v\n", h)
-		logger.L.Infof("Receiver.Handle has body:\n%q\n", string(b.B))
+		//logger.L.Infof("Receiver.Handle has body:\n%q\n", string(b.B))
 
 		r.a.AddToFeeder(repo.NewReceiverUnit(h, b, repo.ReceiverSignal{}))
 

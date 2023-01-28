@@ -7,6 +7,6 @@ option go_package = "./pb";
 import "internal/adapters/driven/grpc/proto/msg.proto";
 
 service PostParser {
-    rpc singlePart(TextFieldsReq) returns (TextFieldRes) {};
+    rpc singlePart(TextFieldReq) returns (TextFieldRes) {};
     rpc multiPart(stream FileUploadReq) returns (FileUploadRes) {};
 }

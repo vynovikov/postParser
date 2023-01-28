@@ -22,7 +22,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PostParserClient interface {
-	SinglePart(ctx context.Context, in *TextFieldsReq, opts ...grpc.CallOption) (*TextFieldRes, error)
+	SinglePart(ctx context.Context, in *TextFieldReq, opts ...grpc.CallOption) (*TextFieldRes, error)
 	MultiPart(ctx context.Context, opts ...grpc.CallOption) (PostParser_MultiPartClient, error)
 }
 
@@ -34,7 +34,7 @@ func NewPostParserClient(cc grpc.ClientConnInterface) PostParserClient {
 	return &postParserClient{cc}
 }
 
-func (c *postParserClient) SinglePart(ctx context.Context, in *TextFieldsReq, opts ...grpc.CallOption) (*TextFieldRes, error) {
+func (c *postParserClient) SinglePart(ctx context.Context, in *TextFieldReq, opts ...grpc.CallOption) (*TextFieldRes, error) {
 	out := new(TextFieldRes)
 	err := c.cc.Invoke(ctx, "/rpc.PostParser/singlePart", in, out, opts...)
 	if err != nil {
@@ -81,7 +81,7 @@ func (x *postParserMultiPartClient) CloseAndRecv() (*FileUploadRes, error) {
 // All implementations must embed UnimplementedPostParserServer
 // for forward compatibility
 type PostParserServer interface {
-	SinglePart(context.Context, *TextFieldsReq) (*TextFieldRes, error)
+	SinglePart(context.Context, *TextFieldReq) (*TextFieldRes, error)
 	MultiPart(PostParser_MultiPartServer) error
 	mustEmbedUnimplementedPostParserServer()
 }
@@ -90,7 +90,7 @@ type PostParserServer interface {
 type UnimplementedPostParserServer struct {
 }
 
-func (UnimplementedPostParserServer) SinglePart(context.Context, *TextFieldsReq) (*TextFieldRes, error) {
+func (UnimplementedPostParserServer) SinglePart(context.Context, *TextFieldReq) (*TextFieldRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SinglePart not implemented")
 }
 func (UnimplementedPostParserServer) MultiPart(PostParser_MultiPartServer) error {
@@ -110,7 +110,7 @@ func RegisterPostParserServer(s grpc.ServiceRegistrar, srv PostParserServer) {
 }
 
 func _PostParser_SinglePart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TextFieldsReq)
+	in := new(TextFieldReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func _PostParser_SinglePart_Handler(srv interface{}, ctx context.Context, dec fu
 		FullMethod: "/rpc.PostParser/singlePart",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PostParserServer).SinglePart(ctx, req.(*TextFieldsReq))
+		return srv.(PostParserServer).SinglePart(ctx, req.(*TextFieldReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }

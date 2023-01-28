@@ -39,7 +39,7 @@ func (s *rpcSuite) TestRegister() {
 					{TS: "qqq", Part: 0}: stream,
 				},
 			},
-			H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{C: repo.CurrentPieceHeader{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.StopLast, PostAction: repo.None}}},
+			H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{UK: repo.UnaryKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.StopLast, PostAction: repo.None}}},
 			wantT: TransmitAdapter{
 				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{},
 			},
@@ -51,74 +51,49 @@ func (s *rpcSuite) TestRegister() {
 			name: "unary error stream not found",
 			T: TransmitAdapter{
 				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
-					{TS: "qqq", Part: 0}: stream,
+					{TS: "qqq", Part: 1}: stream,
 				},
 			},
-			H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{C: repo.CurrentPieceHeader{TS: "qqq", Part: 2}, M: repo.Message{PreAction: repo.StopLast}}},
+			H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{UK: repo.UnaryKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.StopLast}}},
 			wantT: TransmitAdapter{
 				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
-					{TS: "qqq", Part: 0}: stream,
+					{TS: "qqq", Part: 1}: stream,
 				},
 			},
 			wantErr: []error{
-				errors.New("in parser.Rpc.Register stream \"{qqq 1 false}\" not found"),
+				errors.New("in parser.Rpc.Register stream \"{qqq 0 false}\" not found"),
 			},
 			wantSK: []repo.StreamKey{},
 		},
-		/*
-			{
-				name: "unary prevAction == repo.Finish => setting Remove flag",
-				T: TransmitAdapter{
-					M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
-						{TS: "qqq", Part: 0}: stream,
-						{TS: "qqq", Part: 1}: stream,
-						{TS: "qqq", Part: 2}: stream,
-					},
-				},
-				H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{C: repo.CurrentPieceHeader{TS: "qqq", Part: 2}, M: repo.Message{PostAction: repo.Finish}}},
-				wantT: TransmitAdapter{
-					M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
-						{TS: "qqq", Part: 0, Remove: true}: stream,
-						{TS: "qqq", Part: 1, Remove: true}: stream,
-						{TS: "qqq", Part: 2, Remove: true}: stream,
-					},
-				},
-				wantSK: []repo.StreamKey{
-					{TS: "qqq", Part: 0, Remove: true},
-					{TS: "qqq", Part: 1, Remove: true},
-					{TS: "qqq", Part: 2, Remove: true},
-				},
-				wantErr: []error{},
-			},
 
-			{
-				name: "tech deleting from map all same TS records",
-				T: TransmitAdapter{
-					M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
-						{TS: "qqq", Part: 0}: stream,
-						{TS: "qqq", Part: 1}: stream,
-						{TS: "qqq", Part: 2}: stream,
-						{TS: "www", Part: 3}: stream,
-					},
-				},
-				H: repo.AppDistributorHeader{T: repo.Tech, C: repo.CloseData{D: []repo.StreamKey{{TS: "qqq", Part: 0}, {TS: "qqq", Part: 1}, {TS: "qqq", Part: 2}}}},
-				wantT: TransmitAdapter{
-					M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
-						{TS: "www", Part: 3}: stream,
-					},
-				},
-				wantErr: []error{},
-				wantSK:  []repo.StreamKey{},
-			},
-		*/
 		{
-			name: "clientStream prevAction == repo.None, postAction = repo.None, t.M has current stream key",
+			name: "clientStream prevAction == repo.Open, postAction = repo.Continue, t.M countains adu's part stream => returning keys to open and continue",
+			T: TransmitAdapter{
+				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
+					{TS: "qqq", Part: 1, N: false}: stream,
+				},
+			},
+			H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.Open, PostAction: repo.Continue}}},
+			wantT: TransmitAdapter{
+				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
+					{TS: "qqq", Part: 1, N: false}: stream,
+				},
+			},
+			wantErr: []error{},
+			wantSK: []repo.StreamKey{
+				{TS: "qqq", Part: 1, N: true},
+				{TS: "qqq", Part: 2, N: false},
+			},
+		},
+
+		{
+			name: "clientStream prevAction == repo.Start, postAction = repo.Continue => returning keys to open and continue",
 			T: TransmitAdapter{
 				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
 					{TS: "qqq", Part: 1}: stream,
 				},
 			},
-			H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}},
+			H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.Open, PostAction: repo.Continue}}},
 			wantT: TransmitAdapter{
 				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
 					{TS: "qqq", Part: 1}: stream,
@@ -126,44 +101,48 @@ func (s *rpcSuite) TestRegister() {
 			},
 			wantErr: []error{},
 			wantSK: []repo.StreamKey{
-				{TS: "qqq", Part: 1},
-				{TS: "qqq", Part: 2},
+				{TS: "qqq", Part: 1, N: true},
+				{TS: "qqq", Part: 2, N: false},
 			},
 		},
 
 		{
-			name: "clientStream prevAction == repo.None, postAction = repo.None, t.M hasn't current stream key",
+			name: "clientStream prevAction == repo.Continue, postAction = repo.Continue => returning keys to open and continue",
 			T: TransmitAdapter{
-				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{},
+				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
+					{TS: "qqq", Part: 1, N: false}: stream,
+				},
 			},
-			H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}},
+			H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}},
 			wantT: TransmitAdapter{
-				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{},
+				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
+					{TS: "qqq", Part: 1, N: false}: stream,
+				},
 			},
 			wantErr: []error{},
 			wantSK: []repo.StreamKey{
-				{TS: "qqq", Part: 1},
-				{TS: "qqq", Part: 2},
+				{TS: "qqq", Part: 1, N: false},
+				{TS: "qqq", Part: 2, N: false},
 			},
 		},
 
 		{
-			name: "clientStream prevAction == repo.StopLast, postAction = repo.None",
+			name: "clientStream prevAction == repo.StopLast, postAction = repo.Continue",
 			T: TransmitAdapter{
 				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
-					{TS: "qqq", Part: 2}: stream,
+					{TS: "qqq", Part: 2, N: false}: stream,
 				},
 			},
-			H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 2}, M: repo.Message{PreAction: repo.StopLast, PostAction: repo.None}}},
+			H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 2}, M: repo.Message{PreAction: repo.StopLast, PostAction: repo.Continue}}},
 			wantT: TransmitAdapter{
 				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
-					{TS: "qqq", Part: 2}: stream,
+					{TS: "qqq", Part: 2, N: false}: stream,
 				},
 			},
 			wantErr: []error{},
 			wantSK: []repo.StreamKey{
-				{TS: "qqq", Part: 2},
-				{TS: "qqq", Part: 3},
+				{TS: "qqq", Part: 2, N: false},
+				{TS: "qqq", Part: 3, N: false},
 			},
 		},
 
@@ -171,61 +150,61 @@ func (s *rpcSuite) TestRegister() {
 			name: "clientStream prevAction == repo.StopLast, postAction = repo.Finish",
 			T: TransmitAdapter{
 				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
-					{TS: "qqq", Part: 1}: stream,
+					{TS: "qqq", Part: 1, N: false}: stream,
 				},
 			},
 			H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.StopLast, PostAction: repo.Finish}}},
 			wantT: TransmitAdapter{
 				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
-					{TS: "qqq", Part: 1}: stream,
+					{TS: "qqq", Part: 1, N: false}: stream,
 				},
 			},
 			wantErr: []error{},
 			wantSK: []repo.StreamKey{
-				{TS: "qqq", Part: 1},
-				{TS: "qqq", Part: 1},
+				{TS: "qqq", Part: 1, N: false},
+				{TS: "qqq", Part: 1, N: false},
 			},
 		},
 
 		{
-			name: "clientStream prevAction == repo.None, postAction = repo.Stop",
+			name: "clientStream prevAction == repo.Continue, postAction = repo.Close",
 			T: TransmitAdapter{
 				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
-					{TS: "qqq", Part: 1}: stream,
+					{TS: "qqq", Part: 1, N: false}: stream,
 				},
 			},
-			H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.None, PostAction: repo.Stop}}},
+			H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Close}}},
 			wantT: TransmitAdapter{
 				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
-					{TS: "qqq", Part: 1}: stream,
+					{TS: "qqq", Part: 1, N: false}: stream,
 				},
 			},
 			wantErr: []error{},
 			wantSK: []repo.StreamKey{
-				{TS: "qqq", Part: 1},
-				{TS: "qqq", Part: 1},
+				{TS: "qqq", Part: 1, N: false},
+				{TS: "qqq", Part: 1, N: false},
 			},
 		},
 
 		{
-			name: "clientStream prevAction == repo.None, postAction = repo.Finish",
+			name: "clientStream prevAction == repo.Continue, postAction = repo.Finish",
 			T: TransmitAdapter{
 				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
-					{TS: "qqq", Part: 1}: stream,
-					{TS: "www", Part: 0}: stream,
+					{TS: "qqq", Part: 1, N: false}: stream,
+					{TS: "www", Part: 0, N: false}: stream,
 				},
 			},
-			H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.None, PostAction: repo.Finish}}},
+			H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Finish}}},
 			wantT: TransmitAdapter{
 				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
-					{TS: "qqq", Part: 1}: stream,
-					{TS: "www", Part: 0}: stream,
+					{TS: "qqq", Part: 1, N: false}: stream,
+					{TS: "www", Part: 0, N: false}: stream,
 				},
 			},
 			wantErr: []error{},
 			wantSK: []repo.StreamKey{
-				{TS: "qqq", Part: 1},
-				{TS: "qqq", Part: 1},
+				{TS: "qqq", Part: 1, N: false},
+				{TS: "qqq", Part: 1, N: false},
 			},
 		},
 	}
@@ -247,31 +226,12 @@ func (s *rpcSuite) TestNewReqStream() {
 		wantReq *pb.FileUploadReq
 	}{
 		{
-			name: "preAction: repo.None postAction: repo.None, stream exists",
-			T: TransmitAdapter{
-				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
-					{TS: "qqq", Part: 1}: stream,
-				},
-			},
-			aduOne: repo.AppDistributorUnit{
-				H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
-			},
-			wantReq: &pb.FileUploadReq{
-				Info: &pb.FileUploadReq_FileData{
-					FileData: &pb.FileData{
-						ByteChunk: []byte("azaza"),
-					},
-				},
-			},
-		},
-
-		{
-			name: "preAction: repo.None postAction: repo.None, stream not exists",
+			name: "preAction: repo.Start postAction: repo.Continue",
 			T: TransmitAdapter{
 				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{},
 			},
 			aduOne: repo.AppDistributorUnit{
-				H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
+				H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 0}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Start, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
 			},
 			wantReq: &pb.FileUploadReq{
 				Info: &pb.FileUploadReq_FileData{
@@ -283,14 +243,49 @@ func (s *rpcSuite) TestNewReqStream() {
 		},
 
 		{
-			name: "preAction: repo.None postAction: repo.Finish",
+			name: "preAction: repo.Continue postAction: repo.Continue, stream exists",
 			T: TransmitAdapter{
 				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
 					{TS: "qqq", Part: 1}: stream,
 				},
 			},
 			aduOne: repo.AppDistributorUnit{
-				H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
+				H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
+			},
+			wantReq: &pb.FileUploadReq{
+				Info: &pb.FileUploadReq_FileData{
+					FileData: &pb.FileData{
+						ByteChunk: []byte("azaza"),
+					},
+				},
+			},
+		},
+
+		{
+			name: "preAction: repo.Open postAction: repo.Continue, stream not exists",
+			T: TransmitAdapter{
+				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{},
+			},
+			aduOne: repo.AppDistributorUnit{
+				H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Open, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
+			},
+			wantReq: &pb.FileUploadReq{
+				Info: &pb.FileUploadReq_FileData{
+					FileData: &pb.FileData{
+						ByteChunk: []byte("azaza"),
+					},
+				},
+			},
+		},
+		{
+			name: "preAction: repo.Continue postAction: repo.Finish",
+			T: TransmitAdapter{
+				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
+					{TS: "qqq", Part: 1}: stream,
+				},
+			},
+			aduOne: repo.AppDistributorUnit{
+				H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
 			},
 			wantReq: &pb.FileUploadReq{
 				Info: &pb.FileUploadReq_FileData{
@@ -303,14 +298,14 @@ func (s *rpcSuite) TestNewReqStream() {
 		},
 
 		{
-			name: "preAction: repo.StopLast postAction: repo.None",
+			name: "preAction: repo.StopLast postAction: repo.Continue",
 			T: TransmitAdapter{
 				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
 					{TS: "qqq", Part: 1}: stream,
 				},
 			},
 			aduOne: repo.AppDistributorUnit{
-				H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.StopLast, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+				H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.StopLast, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 
 			wantReq: &pb.FileUploadReq{
 				Info: &pb.FileUploadReq_FileData{
@@ -355,16 +350,16 @@ func (s *rpcSuite) TestNewReqUnary() {
 		name    string
 		T       TransmitAdapter
 		aduOne  repo.AppDistributorUnit
-		wantReq *pb.TextFieldsReq
+		wantReq *pb.TextFieldReq
 	}{
 
 		{
 			name: "preAction: repo.None postAction: repo.None no filename",
 			T:    TransmitAdapter{},
 			aduOne: repo.AppDistributorUnit{
-				H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{TS: "qqq", F: repo.FiFo{FormName: "alice"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
+				H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{UK: repo.UnaryKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
 			},
-			wantReq: &pb.TextFieldsReq{
+			wantReq: &pb.TextFieldReq{
 				Ts:        "qqq",
 				Name:      "alice",
 				ByteChunk: []byte("azaza"),
@@ -375,9 +370,9 @@ func (s *rpcSuite) TestNewReqUnary() {
 			name: "preAction: repo.None postAction: repo.None filename",
 			T:    TransmitAdapter{},
 			aduOne: repo.AppDistributorUnit{
-				H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{TS: "qqq", F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
+				H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{UK: repo.UnaryKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
 			},
-			wantReq: &pb.TextFieldsReq{
+			wantReq: &pb.TextFieldReq{
 				Ts:        "qqq",
 				Name:      "alice",
 				Filename:  "short.txt",
@@ -386,7 +381,7 @@ func (s *rpcSuite) TestNewReqUnary() {
 		},
 
 		{
-			name: "preAction: repo.None postAction: repo.Finish",
+			name: "preAction: repo.Start postAction: repo.None",
 			T: TransmitAdapter{
 				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
 					{TS: "qqq", Part: 1}: stream,
@@ -394,9 +389,50 @@ func (s *rpcSuite) TestNewReqUnary() {
 				},
 			},
 			aduOne: repo.AppDistributorUnit{
-				H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{TS: "qqq", F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.None, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
+				H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{UK: repo.UnaryKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Start, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
 			},
-			wantReq: &pb.TextFieldsReq{
+			wantReq: &pb.TextFieldReq{
+				Ts:        "qqq",
+				Name:      "alice",
+				Filename:  "short.txt",
+				ByteChunk: []byte("azaza"),
+				IsFirst:   true,
+			},
+		},
+
+		{
+			name: "preAction: repo.Start postAction: repo.Finish",
+			T: TransmitAdapter{
+				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
+					{TS: "qqq", Part: 1}: stream,
+					{TS: "www", Part: 1}: stream,
+				},
+			},
+			aduOne: repo.AppDistributorUnit{
+				H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{UK: repo.UnaryKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Start, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
+			},
+			wantReq: &pb.TextFieldReq{
+				Ts:        "qqq",
+				Name:      "alice",
+				Filename:  "short.txt",
+				ByteChunk: []byte("azaza"),
+				IsFirst:   true,
+				IsLast:    true,
+			},
+		},
+
+		{
+			name: "preAction: repo.Continue postAction: repo.Finish",
+			T: TransmitAdapter{
+				M: map[repo.StreamKey]pb.PostParser_MultiPartClient{
+					{TS: "qqq", Part: 1}: stream,
+					{TS: "www", Part: 1}: stream,
+				},
+			},
+			aduOne: repo.AppDistributorUnit{
+				H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{UK: repo.UnaryKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
+			},
+			wantReq: &pb.TextFieldReq{
 				Ts:        "qqq",
 				Name:      "alice",
 				Filename:  "short.txt",
