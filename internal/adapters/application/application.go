@@ -24,14 +24,6 @@ type PieceKey struct {
 	Part int
 }
 
-/*
-	func NewBlockInfo() *repo.BlockInfo {
-		return &repo.BlockInfo{
-			TS:       time.Now().Local(),
-			Boundary: "---xxx",
-		}
-	}
-*/
 type App struct {
 	T grpc.Transmitter
 	C core.Parser
@@ -158,17 +150,6 @@ func (a *App) HandleSmart(d repo.DataPiece, bou repo.Boundary, i int) {
 	logger.L.Infof("in application.HandleSmart worker %d called Handle with parameters dataPiece header %v, body %q, bou %v\n", i, d.GetHeader(), d.GetBody(0), bou)
 
 	adus, _ := a.Handle(d, bou, i)
-
-	//logger.L.Infof("in application.HandleUnOrdered worker %d issued adus:\n", i)
-	/*	for j, v := range adus {
-				logger.L.Warnf("in application.HandleSmart worker %d issued adu j = %d, header %v, body %q\n", i, j, v.H, v.B.B)
-			}
-			//logger.L.Infof("in application.HandleUnOrdered worker %d issued errors:\n", i)
-
-		for j, v := range errs {
-			logger.L.Infof("in application.HandleSmart worker %d issued error j = %d, error: %v\n", i, j, v)
-		}
-	*/
 	//	logger.L.Warnf("in application.HandleSmart worker %d left counter = %d\n", i, a.S.Counter(repo.NewAppStoreKeyGeneralFromDataPiece(d)))
 	a.toChanOut(adus)
 }
