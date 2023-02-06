@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"postParser/internal/logger"
 	"postParser/internal/repo"
 	"sort"
 	"strings"
@@ -467,12 +468,12 @@ func (s *StoreStruct) BufferAdd(d repo.DataPiece) {
 		}
 
 	}
-	/*
-		logger.L.Warnln("in store.BufferAdd buffer after all:")
-		for i, v := range s.B[askg] {
-			logger.L.Infof("in store.BufferAdd i = %d, header: %q, body: %q\n", i, v.GetHeader(), v.GetBody(0))
-		}
-	*/
+
+	logger.L.Warnf("in store.BufferAdd buffer after adding dataPiece with body: %q\n", d.GetBody(0))
+	for i, v := range s.B[askg] {
+		logger.L.Warnf("in store.BufferAdd i = %d, header: %q, body: %q\n", i, v.GetHeader(), v.GetBody(0))
+	}
+
 }
 
 // Inserting new element to the beginning of slice, shifting the rest
@@ -567,7 +568,7 @@ func (s *StoreStruct) CleanBuffer(ids repo.AppStoreBufferIDs) {
 
 // Register buffer elements, considering they are sorted by Part
 func (s *StoreStruct) RegisterBuffer(d repo.DataPiece, bou repo.Boundary) ([]repo.AppDistributorUnit, []error) {
-	//logger.L.Infof("store.RegisterBuffer invoked with R: %v, B: %v and counter = %v\n", s.R, s.B, s.C)
+	logger.L.Infof("store.RegisterBuffer invoked by d_body %q, s.R: %v, s.B: %v and s.C = %v\n", d.GetBody(0), s.R, s.B, s.C)
 	ids, adus, errs, repeat := repo.NewAppStoreBufferIDs(), make([]repo.AppDistributorUnit, 0), make([]error, 0), true
 	/*p,_:=d.Part(),d.E()
 	  logger.L.Infof("in store.RegisterBuffer after register ")
@@ -641,6 +642,7 @@ func (s *StoreStruct) RegisterBuffer(d repo.DataPiece, bou repo.Boundary) ([]rep
 		s.CleanBuffer(*ids)
 	}
 
+	//logger.L.Warnf("in store.RegisterBuffer afer all handling d_body %q, s.R: %v, s.B: %v, s.C: %v\n", d.GetBody(0), s.R, s.B, s.C)
 	return adus, errs
 }
 

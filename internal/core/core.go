@@ -21,7 +21,7 @@ func NewCore() Parser {
 }
 func (c *Core) Slicer(afu repo.AppFeederUnit) (repo.AppPieceUnit, []repo.AppPieceUnit, repo.AppSub) {
 
-	b, m, e := repo.Slicer(afu.R.B.B, afu.R.H.Voc.Boundary)
+	b, m, e := repo.Slicer(afu.R.B.B, afu.R.H.Bou)
 	if !cmp.Equal(b, repo.AppPieceUnit{}) {
 		b.APH.SetPart(afu.R.H.Part)
 		b.APH.SetTS(afu.R.H.TS)

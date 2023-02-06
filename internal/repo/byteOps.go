@@ -27,21 +27,23 @@ func FindBoundary(b []byte) Boundary {
 
 	bPrefix, bRoot := []byte{}, []byte{}
 
+	//logger.L.Infof("in repo.FindBoundary b = %q, BoundaryField = %q, bytes.Contains(b, []byte(BoundaryField)) %t\n", b, BoundaryField, bytes.Contains(b, []byte(BoundaryField)))
+
 	if bytes.Contains(b, []byte(BoundaryField)) {
 
-		start := bytes.Index(b, []byte(BoundaryField)) + len(BoundaryField)
+		startIndex := bytes.Index(b, []byte(BoundaryField)) + len(BoundaryField)
 
-		bRoot = LineRightLimit(b, start, 70)
+		bRoot = LineRightLimit(b, startIndex, 70)
 
-		//	logger.L.Infof("in repo.FindBoundary bRoot = %q\n", bRoot)
+		//logger.L.Infof("in repo.FindBoundary bRoot = %q\n", bRoot)
 
-		bb := b[start+1:]
+		bb := b[startIndex+1:]
 
 		secBoundaryIndex := bytes.Index(bb, bRoot) - 1
 
 		bPrefix = LineLeftLimit(bb, secBoundaryIndex, MaxLineLimit)
 
-		//	logger.L.Infof("in repo.FindBoundary bPrefix = %q\n", bPrefix)
+		//logger.L.Infof("in repo.FindBoundary bPrefix = %q\n", bPrefix)
 	}
 
 	return Boundary{

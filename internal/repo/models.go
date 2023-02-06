@@ -65,9 +65,9 @@ func NewVocabulary(b Boundary) Vocabulaty {
 type ReceiverHeader struct {
 	Part int
 	TS   string
-	Voc  Vocabulaty
+	Bou  Boundary
 }
-type ReceverBody struct {
+type ReceiverBody struct {
 	B []byte
 }
 type ReceiverSignal struct {
@@ -78,48 +78,24 @@ func (rh *ReceiverHeader) SetPart(p int) {
 	rh.Part = p
 }
 
-func NewReceiverSignal(s string) ReceiverSignal {
-	return ReceiverSignal{
-		Signal: s,
-	}
-}
-
-/*
-	type EnvelopeOut struct {
-		FI        *FormInfo
-		Part      int
-		FormValue []byte
-	}
-
-	type EnvelopeIn struct {
-		I    *BlockInfo
-		Part int
-		B    []byte
-	}
-*/
 type ReceiverUnit struct {
 	H ReceiverHeader
-	B ReceverBody
-	S ReceiverSignal
+	B ReceiverBody
 }
 
-func NewReceiverUnit(h ReceiverHeader, b ReceverBody, s ReceiverSignal) ReceiverUnit {
+func NewReceiverUnit(h ReceiverHeader, b ReceiverBody) ReceiverUnit {
 	return ReceiverUnit{
 		H: h,
 		B: b,
-		S: s,
 	}
 }
 
-func (r *ReceverBody) SetBytes(buf []byte) {
+func (r *ReceiverBody) SetBytes(buf []byte) {
 	r.B = buf
 }
 
 func IncPart(h *ReceiverHeader) {
 	h.Part++
-}
-func (r *ReceiverUnit) SetSignal(s ReceiverSignal) {
-	r.S = s
 }
 
 type Boundary struct {
@@ -134,18 +110,16 @@ func NewBoundary(r []byte) Boundary {
 	}
 }
 
-func NewReceiverHeader(ts string, peaked []byte) ReceiverHeader {
-
-	boundary := FindBoundary(peaked)
+func NewReceiverHeader(ts string, p int, bou Boundary) ReceiverHeader {
 
 	return ReceiverHeader{
-		Part: 0,
+		Part: p,
 		TS:   ts,
-		Voc:  NewVocabulary(boundary),
+		Bou:  bou,
 	}
 }
-func NewReceiverBody(n int) ReceverBody {
-	return ReceverBody{
+func NewReceiverBody(n int) ReceiverBody {
+	return ReceiverBody{
 		B: make([]byte, n),
 	}
 }

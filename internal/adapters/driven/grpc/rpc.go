@@ -72,7 +72,7 @@ func (t *TransmitAdapter) transmitUnary(c pb.PostParserClient, aduOne repo.AppDi
 	errs, streamKyes := make([]error, 0), make([]repo.StreamKey, 0)
 	req := t.NewReqUnary(aduOne)
 
-	logger.L.Infof("in grpc.transmitUnary for aduOne header %v, body %q, made req: %v\n", aduOne.H, aduOne.B.B, req)
+	//logger.L.Infof("in grpc.transmitUnary for aduOne header %v, body %q, made req: %v\n", aduOne.H, aduOne.B.B, req)
 
 	if aduOne.H.U.M.PostAction == repo.Finish {
 		streamKyes, errs = t.Register(aduOne.H)
@@ -112,26 +112,26 @@ func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppD
 	//techAduHeader := repo.AppDistributorHeader{T: repo.Tech, C: repo.CloseData{D: []repo.StreamKey{}}}
 
 	streamKeyes, errs := t.Register(aduOne.H)
+	/*
+		logger.L.Infof("in grpc.transmitStream for aduOne with header %v and body %q and t.M %v called Register which returned streamKeys (%d) and errors (%d):\n", aduOne.H, aduOne.B.B, t.M, len(streamKeyes), len(errs))
+		logger.L.Warnf("in grpc.transmitStream aduOne.H.S.M.PreAction = %d, aduOne.H.S.M.PostAction = %d\n", aduOne.H.S.M.PreAction, aduOne.H.S.M.PostAction)
 
-	logger.L.Infof("in grpc.transmitStream for aduOne with header %v and body %q and t.M %v called Register which returned streamKeys (%d) and errors (%d):\n", aduOne.H, aduOne.B.B, t.M, len(streamKeyes), len(errs))
-	logger.L.Warnf("in grpc.transmitStream aduOne.H.S.M.PreAction = %d, aduOne.H.S.M.PostAction = %d\n", aduOne.H.S.M.PreAction, aduOne.H.S.M.PostAction)
-
-	if len(streamKeyes) < 2 {
-		errs = append(errs, fmt.Errorf("in parser.grpc.transmitStream len(streamKeys) < 2: %v", streamKeyes))
-		return errs
-	}
-
-	for i, v := range streamKeyes {
-		logger.L.Infof("in grpc.transmitStream streamKey i = %d, v: %v\n", i, v)
-	}
-
-	for i, v := range errs {
-		logger.L.Infof("in grpc.transmitStream error i = %d, v: %v\n", i, v)
-		if v != nil {
-			errs = append(errs, v)
+		if len(streamKeyes) < 2 {
+			errs = append(errs, fmt.Errorf("in parser.grpc.transmitStream len(streamKeys) < 2: %v", streamKeyes))
+			return errs
 		}
-	}
 
+		for i, v := range streamKeyes {
+			logger.L.Infof("in grpc.transmitStream streamKey i = %d, v: %v\n", i, v)
+		}
+
+		for i, v := range errs {
+			logger.L.Infof("in grpc.transmitStream error i = %d, v: %v\n", i, v)
+			if v != nil {
+				errs = append(errs, v)
+			}
+		}
+	*/
 	switch pre := aduOne.H.S.M.PreAction; {
 	case pre == repo.Start || pre == repo.Open:
 		if pre == repo.Start {
@@ -140,11 +140,12 @@ func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppD
 			stream, err = t.NewStream(aduOne.H.S.SK.TS, aduOne.H.S.F.FormName, aduOne.H.S.F.FileName, false)
 		}
 		if err != nil {
+			//	logger.L.Errorf("in grpc.transmitStream error: %v\n", err)
 			errs = append(errs, err)
 		}
 		t.M[streamKeyes[0]] = stream
 
-		logger.L.Infof("in grpc.transmitStream preAction Start req: %v\n", req)
+		//logger.L.Infof("in grpc.transmitStream preAction Start req: %v\n", req)
 		err = stream.Send(req)
 
 		if err != nil {
@@ -152,7 +153,7 @@ func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppD
 		}
 
 	case pre == repo.Continue:
-		logger.L.Infof("in grpc.transmitStream in preAction none t.M: %v\n", t.M)
+		//logger.L.Infof("in grpc.transmitStream in preAction none t.M: %v\n", t.M)
 		stream, ok := t.M[streamKeyes[0]]
 		if !ok {
 			stream, err = t.NewStream(aduOne.H.S.SK.TS, aduOne.H.S.F.FormName, aduOne.H.S.F.FileName, false)
@@ -161,7 +162,7 @@ func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppD
 			}
 			t.M[streamKeyes[0]] = stream
 		}
-		logger.L.Infof("in grpc.transmitStream preAction none req: %v\n", req)
+		//logger.L.Infof("in grpc.transmitStream preAction none req: %v\n", req)
 		err = stream.Send(req)
 
 		if err != nil {
@@ -185,7 +186,7 @@ func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppD
 		}
 
 	}
-	logger.L.Warnf("in grpc.transmitStream after PreAction t.M: %v\n", t.M)
+	//logger.L.Warnf("in grpc.transmitStream after PreAction t.M: %v\n", t.M)
 
 	switch aduOne.H.S.M.PostAction {
 
@@ -202,7 +203,7 @@ func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppD
 			if err != nil {
 				errs = append(errs, err)
 			}
-			logger.L.Infof("in grpc.transmitStream PostAction none req: %v\n", req)
+			//logger.L.Infof("in grpc.transmitStream PostAction none req: %v\n", req)
 			err = stream.Send(req)
 
 			if err != nil {
@@ -212,7 +213,7 @@ func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppD
 
 		t.M[streamKeyes[1]] = stream
 
-		logger.L.Infof("in grpc.transmitStream after PostAction t.M: %v\n", t.M)
+		//logger.L.Infof("in grpc.transmitStream after PostAction t.M: %v\n", t.M)
 
 	case repo.Close:
 
@@ -239,7 +240,7 @@ func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppD
 		}
 	}
 
-	logger.L.Infof("in grpc.transmitStream after handling t.M: %v\n", t.M)
+	//logger.L.Infof("in grpc.transmitStream after handling t.M: %v\n", t.M)
 
 	return errs
 

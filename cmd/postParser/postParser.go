@@ -4,8 +4,10 @@ import (
 	"postParser/internal/adapters/application"
 	"postParser/internal/adapters/driven/grpc"
 	"postParser/internal/adapters/driven/store"
-	"postParser/internal/adapters/driver"
+	"postParser/internal/adapters/driver/tp"
+	"postParser/internal/adapters/driver/tps"
 	"postParser/internal/core"
+	"time"
 )
 
 func main() {
@@ -15,6 +17,9 @@ func main() {
 
 	app := application.NewApplication(core, store, transmitter)
 
-	receiver := driver.NewReceiver(app)
-	receiver.Run()
+	tpReceiver := tp.NewTpReceiver(app)
+	tpsReceiver := tps.NewTpsReceiver(app)
+	go tpReceiver.Run()
+	go tpsReceiver.Run()
+	time.Sleep(time.Minute * 10)
 }
