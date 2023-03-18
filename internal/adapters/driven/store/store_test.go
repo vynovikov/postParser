@@ -2,8 +2,8 @@ package store
 
 import (
 	"errors"
-	"postParser/internal/repo"
 	"testing"
+	"workspaces/postParser/internal/repo"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -786,7 +786,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 	tt := []struct {
 		name      string
 		store     Store
-		d         repo.DataPiece
+		askg      repo.AppStoreKeyGeneral
 		bou       repo.Boundary
 		wantStore Store
 		wantADUs  []repo.AppDistributorUnit
@@ -809,9 +809,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 							},
 						}}},
 			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{TS: "qqq", Part: 1, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nbzbzbz")},
-			},
+			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
 			wantStore: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -856,9 +854,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
 					{TS: "qqq"}: {Max: 6, Cur: 1}},
 			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{TS: "qqq", Part: 1, B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nbzbzbz")},
-			},
+			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
 			wantStore: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -905,13 +901,11 @@ func (s *storeSuite) TestRegisterBuffer() {
 						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
 					}},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 5}},
+					{TS: "qqq"}: {Max: 6, Cur: 5, Blocked: true}},
 			},
 
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("bzbzbz")},
-			},
-			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
+			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
+			bou:  repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 			wantStore: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -928,7 +922,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 						}}},
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 4}},
+					{TS: "qqq"}: {Max: 6, Cur: 4, Blocked: true}},
 			},
 			wantADUs: []repo.AppDistributorUnit{
 				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
@@ -968,13 +962,11 @@ func (s *storeSuite) TestRegisterBuffer() {
 						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("czczczcz")}},
 					}},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 5}},
+					{TS: "qqq"}: {Max: 6, Cur: 5, Blocked: true}},
 			},
 
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{TS: "qqq", Part: 0, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nbzbzbz")},
-			},
-			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
+			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
+			bou:  repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 			wantStore: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -992,7 +984,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 					}},
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 3}},
+					{TS: "qqq"}: {Max: 6, Cur: 3, Blocked: true}},
 			},
 			wantADUs: []repo.AppDistributorUnit{
 				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 2, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
@@ -1024,11 +1016,9 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 3, Cur: 3}},
+					{TS: "qqq"}: {Max: 3, Cur: 3, Blocked: true}},
 			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{TS: "qqq", Part: 1, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nbzbzbz")},
-			},
+			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
 			wantStore: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -1049,7 +1039,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 3, Cur: 2}},
+					{TS: "qqq"}: {Max: 3, Cur: 2, Blocked: true}},
 			},
 			wantADUs: []repo.AppDistributorUnit{
 				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 2, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
@@ -1081,12 +1071,10 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 5}},
+					{TS: "qqq"}: {Max: 6, Cur: 5, Blocked: true}},
 			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("dzdzdzdz")},
-			},
-			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
+			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
+			bou:  repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 			wantStore: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -1103,7 +1091,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 						}}},
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 2}},
+					{TS: "qqq"}: {Max: 6, Cur: 2, Blocked: true}},
 			},
 			wantADUs: []repo.AppDistributorUnit{
 				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
@@ -1114,7 +1102,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 		},
 
 		{
-			name: "len(B)>0, all E() == repo.True, TS == dataPiece's TS, parts are matched, dataPiece with part 5 is last",
+			name: "len(B)>0, all E() == repo.True, TS == dataPiece's TS, parts are matched, dataPiece with part 5 remains",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -1137,23 +1125,40 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 3}},
+					{TS: "qqq"}: {Max: 6, Cur: 3, Blocked: true}},
 			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("dzdzdzdz")},
-			},
-			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
+			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
+			bou:  repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 			wantStore: &StoreStruct{
-				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
-				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-				C: map[repo.AppStoreKeyGeneral]repo.Counter{},
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{{TS: "qqq"}: {
+					{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
+						false: repo.AppStoreValue{
+							B: repo.BeginningData{Part: 1},
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							E: repo.True,
+						},
+					}}},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
+					{TS: "qqq"}: {
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("czczc")}},
+					},
+				},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 6, Cur: 1, Blocked: true},
+				},
 			},
+
 			wantADUs: []repo.AppDistributorUnit{
 				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzb")}},
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("czczc")}},
 			},
-			wantErr: []error{},
+			wantErr: []error{
+				errors.New("in store.RegisterBuffer buffer has single element and current counter == 1 and fuse"),
+			},
 		},
 
 		{
@@ -1182,12 +1187,10 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 5}},
+					{TS: "qqq"}: {Max: 6, Cur: 5, Blocked: true}},
 			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("dzdzdzdz")},
-			},
-			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
+			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
+			bou:  repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 			wantStore: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -1208,7 +1211,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 3}},
+					{TS: "qqq"}: {Max: 6, Cur: 3, Blocked: true}},
 			},
 			wantADUs: []repo.AppDistributorUnit{
 				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
@@ -1241,12 +1244,10 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 5}},
+					{TS: "qqq"}: {Max: 6, Cur: 5, Blocked: true}},
 			},
-			d: &repo.AppPieceUnit{
-				APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("dzdzdzdz")},
-			},
-			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
+			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
+			bou:  repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 			wantStore: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -1267,7 +1268,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 3}},
+					{TS: "qqq"}: {Max: 6, Cur: 3, Blocked: true}},
 			},
 			wantADUs: []repo.AppDistributorUnit{
 				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
@@ -1277,12 +1278,169 @@ func (s *storeSuite) TestRegisterBuffer() {
 				errors.New("in store.Register got double-meaning dataPiece"),
 			},
 		},
+
+		{
+			name: "len(B)==1, has current counter == 1 && fuse",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 1},
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								E: repo.True,
+							},
+						}}},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
+					{TS: "qqq"}: {
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+					},
+				},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 3, Cur: 1, Blocked: true},
+				},
+			},
+			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
+			bou:  repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 1},
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								E: repo.True,
+							},
+						}}},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
+					{TS: "qqq"}: {
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+					},
+				},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 3, Cur: 1, Blocked: true},
+				},
+			},
+			wantADUs: []repo.AppDistributorUnit{},
+			wantErr: []error{
+				errors.New("in store.RegisterBuffer buffer has single element and current counter == 1 and fuse"),
+			},
+		},
+
+		{
+			name: "len(B)==3, has current counter == 2 && fuse",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 1},
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								E: repo.True,
+							},
+						}}},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
+					{TS: "qqq"}: {
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azazazaza")}},
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("bzbzbzbzb")}},
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("czczczczc")}},
+					},
+				},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 3, Cur: 3, Blocked: true},
+				},
+			},
+			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
+			bou:  repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 5}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 1},
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								E: repo.True,
+							},
+						}}},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
+					{TS: "qqq"}: {
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 5, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("czczczczc")}},
+					},
+				},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 3, Cur: 1, Blocked: true},
+				},
+			},
+			wantADUs: []repo.AppDistributorUnit{
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazazaza")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzbzbzb")}},
+			},
+			wantErr: []error{
+				errors.New("in store.RegisterBuffer buffer has single element and current counter == 1 and fuse"),
+			},
+		},
+
+		{
+			name: "len(B)==1, has current counter == 1 && !fuse => resetting store",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 3}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 1},
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								E: repo.True,
+							},
+						}}},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
+					{TS: "qqq"}: {
+						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("azazazaza")}},
+					},
+				},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 3, Cur: 1, Blocked: false},
+				},
+			},
+			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
+			bou:  repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{},
+			},
+			wantADUs: []repo.AppDistributorUnit{
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("azazazaza")}},
+			},
+			wantErr: []error{
+				errors.New("in store.Register dataPiece group with TS \"qqq\" and Part \"1\" is finished"),
+			},
+		},
 	}
 
 	for _, v := range tt {
 		s.Run(v.name, func() {
 
-			gotADUs, gotErr := v.store.RegisterBuffer(v.d, v.bou)
+			gotADUs, gotErr := v.store.RegisterBuffer(v.askg, v.bou)
 
 			s.Equal(v.wantStore, v.store)
 			s.Equal(v.wantADUs, gotADUs)
@@ -1298,6 +1456,7 @@ func (s *storeSuite) TestPresense() {
 		store        Store
 		d            repo.DataPiece
 		wantPresense repo.Presense
+		wantError    error
 	}{
 		{
 			name: "No ASKG",
@@ -1306,6 +1465,7 @@ func (s *storeSuite) TestPresense() {
 			},
 			d:            &repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 0, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
 			wantPresense: repo.Presense{},
+			wantError:    nil,
 		},
 
 		{
@@ -1318,6 +1478,7 @@ func (s *storeSuite) TestPresense() {
 			d: &repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 1, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
 			wantPresense: repo.Presense{
 				ASKG: true},
+			wantError: nil,
 		},
 
 		{
@@ -1332,6 +1493,7 @@ func (s *storeSuite) TestPresense() {
 			d: &repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 1, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
 			wantPresense: repo.Presense{
 				ASKG: true},
+			wantError: nil,
 		},
 
 		{
@@ -1341,6 +1503,7 @@ func (s *storeSuite) TestPresense() {
 			},
 			d:            &repo.AppSub{ASH: repo.AppSubHeader{TS: "qqq", Part: 1}, ASB: repo.AppSubBody{B: []byte("\r\n")}},
 			wantPresense: repo.Presense{},
+			wantError:    nil,
 		},
 
 		{
@@ -1366,6 +1529,7 @@ func (s *storeSuite) TestPresense() {
 			wantPresense: repo.Presense{
 				ASKG: true,
 			},
+			wantError: nil,
 		},
 		{
 			name: "AppSub, ASKG met, opposite detailed branch met",
@@ -1405,6 +1569,7 @@ func (s *storeSuite) TestPresense() {
 					},
 				},
 			},
+			wantError: nil,
 		},
 
 		{
@@ -1438,6 +1603,7 @@ func (s *storeSuite) TestPresense() {
 				ASKG: true,
 				ASKD: true,
 			},
+			wantError: nil,
 		},
 
 		{
@@ -1474,6 +1640,7 @@ func (s *storeSuite) TestPresense() {
 					},
 				},
 			},
+			wantError: nil,
 		},
 
 		{
@@ -1532,6 +1699,7 @@ func (s *storeSuite) TestPresense() {
 					},
 				},
 			},
+			wantError: nil,
 		},
 
 		{
@@ -1581,6 +1749,7 @@ func (s *storeSuite) TestPresense() {
 					},
 				},
 			},
+			wantError: nil,
 		},
 
 		{
@@ -1650,6 +1819,78 @@ func (s *storeSuite) TestPresense() {
 					},
 				},
 			},
+			wantError: nil,
+		},
+
+		{
+			name: "ASKD met, B() == repo.True, E() == repo.False, Cur == 1 && Fuse == true => enpty Presense",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{Part: 0},
+								E: repo.True,
+							},
+						},
+					},
+				},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 3, Cur: 1, Blocked: true},
+				},
+			},
+			d:            &repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+			wantPresense: repo.Presense{},
+			wantError:    errors.New("in store.Presense matched but current counter == 1 && Fuse is on"),
+		},
+
+		{
+			name: "ASKD met, B() == repo.True, E() == repo.False, Cur == 1 && Fuse == false => all trues",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+							false: {
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								B: repo.BeginningData{Part: 0},
+								E: repo.True,
+							},
+						},
+					},
+				},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 3, Cur: 1, Blocked: false},
+				},
+			},
+			d: &repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("azaza")}},
+			wantPresense: repo.Presense{
+				ASKG: true,
+				ASKD: true,
+				GR: map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+						false: {
+							D: repo.Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: repo.BeginningData{Part: 0},
+							E: repo.True,
+						},
+					},
+				},
+			},
+
+			wantError: nil,
 		},
 
 		{
@@ -1715,6 +1956,7 @@ func (s *storeSuite) TestPresense() {
 					},
 				},
 			},
+			wantError: nil,
 		},
 
 		{
@@ -1798,13 +2040,20 @@ func (s *storeSuite) TestPresense() {
 					},
 				},
 			},
+			wantError: nil,
 		},
 	}
 
 	for _, v := range tt {
 		s.Run(v.name, func() {
+			gotPresense, gotError := v.store.Presence(v.d)
+			if v.wantError != nil {
+				s.Equal(v.wantError, gotError)
+			}
 
-			s.Equal(v.wantPresense, v.store.Presense(v.d))
+			//logger.L.Errorf("in store.TestPresense gotError %v\n", gotError)
+
+			s.Equal(v.wantPresense, gotPresense)
 		})
 	}
 }
@@ -1815,28 +2064,46 @@ func (s *storeSuite) TestDec() {
 		d         repo.DataPiece
 		wantO     repo.Order
 		wantStore Store
+		wantError error
 	}{
 		{
-			name: "Unordered",
+			name: "ASKG not found",
 			store: &StoreStruct{
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 4, Cur: 4},
+					{TS: "qqq"}: {Max: 4, Cur: 4, Started: false, Blocked: true},
+				},
+			},
+			d:     &repo.AppSub{ASH: repo.AppSubHeader{TS: "www", Part: 1}, ASB: repo.AppSubBody{B: []byte("\r\n")}},
+			wantO: repo.Unordered,
+			wantStore: &StoreStruct{
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 4, Cur: 4, Started: false, Blocked: true},
+				},
+			},
+			wantError: errors.New("in store.Dec askg \"{www}\" not found"),
+		},
+
+		{
+			name: "AppSub => Max --, Cur --, Started remains",
+			store: &StoreStruct{
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 4, Cur: 4, Started: false, Blocked: true},
 				},
 			},
 			d:     &repo.AppSub{ASH: repo.AppSubHeader{TS: "qqq", Part: 1}, ASB: repo.AppSubBody{B: []byte("\r\n")}},
 			wantO: repo.Unordered,
 			wantStore: &StoreStruct{
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 3, Cur: 3},
+					{TS: "qqq"}: {Max: 3, Cur: 3, Started: false, Blocked: true},
 				},
 			},
 		},
 
 		{
-			name: "First",
+			name: "First, Cur > 1",
 			store: &StoreStruct{
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 4, Cur: 4},
+					{TS: "qqq"}: {Max: 4, Cur: 4, Started: false, Blocked: true},
 				},
 			},
 			d: &repo.AppPieceUnit{
@@ -1845,32 +2112,71 @@ func (s *storeSuite) TestDec() {
 			wantO: repo.First,
 			wantStore: &StoreStruct{
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 4, Cur: 3},
+					{TS: "qqq"}: {Max: 4, Cur: 3, Started: true, Blocked: true},
+				},
+			},
+		},
+		{
+			name: "First, Max == 1 && Cur = 1, B() == repo.False, E() == repo.True, Blocked => decrement to 0 with no error",
+			store: &StoreStruct{
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 1, Cur: 1, Started: false, Blocked: true},
+				},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 0, B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Conte")},
+			},
+			wantO: repo.First,
+			wantStore: &StoreStruct{
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 1, Cur: 0, Started: true, Blocked: true},
 				},
 			},
 		},
 
 		{
-			name: "First and Last",
+			name: "cannot dec further_1",
 			store: &StoreStruct{
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 1, Cur: 1},
+					{TS: "qqq"}: {Max: 1, Cur: 1, Started: false, Blocked: true},
 				},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{TS: "qqq", Part: 0, B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazaza")},
 			},
-			wantO: repo.FirstAndLast,
+			wantO: repo.Unordered,
 			wantStore: &StoreStruct{
-				C: map[repo.AppStoreKeyGeneral]repo.Counter{},
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 1, Cur: 1, Started: false, Blocked: true},
+				},
 			},
+			wantError: errors.New("in store.Dec cannot dec further"),
+		},
+
+		{
+			name: "cannot dec further_2",
+			store: &StoreStruct{
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 4, Cur: 1, Started: true, Blocked: true},
+				},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{TS: "qqq", Part: 0, B: repo.False, E: repo.False}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazaza")},
+			},
+			wantO: repo.Unordered,
+			wantStore: &StoreStruct{
+				C: map[repo.AppStoreKeyGeneral]repo.Counter{
+					{TS: "qqq"}: {Max: 4, Cur: 1, Started: true, Blocked: true},
+				},
+			},
+			wantError: errors.New("in store.Dec cannot dec further"),
 		},
 
 		{
 			name: "Intermediate",
 			store: &StoreStruct{
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 4, Cur: 3},
+					{TS: "qqq"}: {Max: 4, Cur: 3, Started: true, Blocked: true},
 				},
 			},
 			d: &repo.AppPieceUnit{
@@ -1879,7 +2185,7 @@ func (s *storeSuite) TestDec() {
 			wantO: repo.Intermediate,
 			wantStore: &StoreStruct{
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 4, Cur: 2},
+					{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true},
 				},
 			},
 		},
@@ -1887,7 +2193,11 @@ func (s *storeSuite) TestDec() {
 
 	for _, v := range tt {
 		s.Run(v.name, func() {
-			gotO := v.store.Dec(v.d)
+			gotO, gotError := v.store.Dec(v.d)
+
+			if v.wantError != nil {
+				s.Equal(v.wantError, gotError)
+			}
 
 			s.Equal(v.wantO, gotO)
 			s.Equal(v.wantStore, v.store)

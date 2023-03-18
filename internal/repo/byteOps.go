@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"postParser/internal/logger"
 	"regexp"
 	"strings"
 	"unicode"
+	"workspaces/postParser/internal/logger"
 )
 
 const (
@@ -1200,20 +1200,6 @@ func GetLineRight(b []byte, fromIndex, limit int) ([]byte, error) {
 
 }
 
-func Min(a, b int) int {
-	if a > b {
-		return b
-	}
-	return a
-}
-
-func Max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 func GetLinesRight1(b []byte, fromIndex, limit int) ([][]byte, error) {
 	//logger.L.Infof("in repo.GetLinerRight1 passed b: %q\n", b)
 
@@ -1523,6 +1509,7 @@ func JoinLines(f, l [][]byte) [][]byte {
 }
 
 func GetHeaderLines(b []byte, bou Boundary) ([]byte, error) {
+	//logger.L.Infof("repo.GetHeaderLines is invoked for b: %q, bou: %q\n", b, bou)
 	resL := make([]byte, 0)
 	if len(b) == 0 {
 		return resL, fmt.Errorf("in repo.GetHeaderLines zero len byte slice passed")
@@ -1635,6 +1622,9 @@ func GetHeaderLines(b []byte, bou Boundary) ([]byte, error) {
 		if IsCDRight(b) {
 			return b, fmt.Errorf("in repo.GetHeaderLines header \"%s\" is not full", b)
 		}
+		if IsLastBoundaryPart(b, bou) {
+			return b, nil
+		}
 
 		return nil, fmt.Errorf("in repo.GetHeaderLines no header found")
 
@@ -1719,11 +1709,13 @@ func GetHeaderLines(b []byte, bou Boundary) ([]byte, error) {
 		//logger.L.Infof("in repo.GetHeaderLines l0: %q, Sufficiency(l0) == %d\n", l0, Sufficiency(l0))
 		//logger.L.Infof("in repo.GetHeaderLines l0: %q, EndingOf(GenBoundary(bou)[2:], l0): %t\n", l0, EndingOf(GenBoundary(bou)[2:], l0))
 		l1 := b[RepeatedIntex(b, []byte("\r\n"), 1)+2 : RepeatedIntex(b, []byte("\r\n"), 2)]
-		//logger.L.Infof("in repo.GetHeaderLines l1: %q, IsCTFull(l1) == %t\n", l1, IsCTFull(l1))
+		//logger.L.Infof("in repo.GetHeaderLines l1: %q, Sufficient(l1) %t\n", l1, Sufficiency(l1) == Sufficient)
 		l2 := b[RepeatedIntex(b, []byte("\r\n"), 2)+2 : RepeatedIntex(b, []byte("\r\n"), 3)]
 
 		//logger.L.Infof("in repo.GetHeaderLines l0: %q,EndingOf(append(GenBoundary(bou)[2:], []byte(\"\r\n\")...)? %t, l1: %q, Sufficiency(l1) == Insufficient? %t, l2: %q, IsCTFull? %t\n", l0, EndingOf(append(GenBoundary(bou)[2:], []byte("\r\n")...), l0), l1, Sufficiency(l1) == Insufficient, l2, IsCTFull(l2))
 		if len(l0) >= 0 && EndingOf(GenBoundary(bou)[2:], l0) && (Sufficiency(l1) == Insufficient || Sufficiency(l1) == Sufficient) {
+			//resL = append(resL, l1...)
+
 			resL = append(l0, []byte("\r\n")...)
 			//logger.L.Infof("in repo.GetHeaderLines resl: %q\n", resL)
 			if Sufficiency(l1) == Insufficient {
@@ -1737,6 +1729,7 @@ func GetHeaderLines(b []byte, bou Boundary) ([]byte, error) {
 					return resL, fmt.Errorf("in repo.GetHeaderLines header \"%s\" is ending part", resL)
 				}
 			}
+
 		}
 		if Sufficiency(l0) == Insufficient &&
 			IsCTFull(l1) {
@@ -1834,12 +1827,11 @@ func IsLastBoundary(p, n []byte, bou Boundary) bool {
 	//logger.L.Infof("in repo.IsLastBoundary realBoundary: %q\n", realBoundary)
 	combined := append(p, n...)
 	//logger.L.Infof("in repo.IsLastBoundary combined: %q\n", combined)
-	//logger.L.Infof("in repo.IsLastBoundary len(combined) < len(realBoundary)? %t, !ContainsBouEnding(combined, bou)? %t\n", len(combined) < len(realBoundary), !ContainsBouEnding(combined, bou))
+	//logger.L.Infof("in repo.IsLastBoundary len(combined) < len(realBoundary)? %t, bytes.Contains(combined, realBoundary)? %t, combined[len(realBoundary):len(realBoundary)+2] %q\n", len(combined) > len(realBoundary), bytes.Contains(combined, realBoundary), combined[len(realBoundary):len(realBoundary)+2])
 
 	if len(combined) > len(realBoundary) &&
 		bytes.Contains(combined, realBoundary) &&
-		combined[len(realBoundary)] != 13 &&
-		bytes.Contains(combined[len(combined)-2:], []byte("\r\n")) {
+		!bytes.Contains(combined[len(realBoundary):len(realBoundary)+2], []byte("\r\n")) {
 		return true
 	}
 
@@ -1896,4 +1888,34 @@ func ContainsBouEnding(b []byte, bou Boundary) bool {
 		n++
 	}
 	return true
+}
+
+func IsLastBoundaryPart(b []byte, bou Boundary) bool {
+	lenb, suffix := len(b), make([]byte, 0)
+	i, lastSymbol := lenb, b[lenb-1]
+
+	for i >= 1 {
+		//logger.L.Infof("in repo.IsLastBoundaryPart i = %d, b[:i]: %q\n", i, b[:i])
+		if i == 1 {
+			//logger.L.Infof("in repo.IsLastBoundaryPart suffix: %q\n", b)
+			return true
+		}
+		if i > 1 && b[i-1] != lastSymbol {
+
+			break
+		}
+		i--
+	}
+	suffix = b[i:]
+	//logger.L.Infof("in repo.IsLastBoundaryPart suffix: %q\n", suffix)
+
+	rootLen := lenb - len(suffix)
+
+	if rootLen < lenb && bytes.Contains(GenBoundary(bou), b[:rootLen]) {
+		//rootPart = b[:rootLen]
+		//logger.L.Infof("in repo.IsLastBoundaryPart rootPart: %q\n", rootPart)
+		return true
+	}
+
+	return false
 }

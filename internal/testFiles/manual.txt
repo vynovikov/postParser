@@ -19,7 +19,8 @@
 	i) curl -X POST -F 'alice=azaza' -F 'madelyn=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\md_digits.txt' -F 'bob=bzbzbz' http://localhost:3000 - Done
 	2 streams + unaries
 	i1) curl -X POST -F 'alice=azaza' -F 'mel=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\md_digits.txt' -F 'bob=bzbzbz' -F 'madelyn=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\md_letters.txt' http://localhost:3000 - Done
-	i2) curl -X POST -F 'alice=azaza' -F 'mel=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\md_digits.txt' -F 'madelyn=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\md_letters.txt' -F 'bob=bzbzbz' http://localhost:3000 - Done
+	i2) curl -X POST -F 'alice=azaza' -F 'mel=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\md_digits.txt' -F 'madelyn=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\md_letters.txt' -F 'bob=bzbzb' http://localhost:3000 - Done
+	i3) curl -X POST -F 'alice=azaza' -F 'mel=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\md_digits.txt' -F 'bob=bzbzbz' -F 'madelyn=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\md_letters.txt' -F 'claire=czczc' http://localhost:3000 - Done
 	large stream
 	j) curl -X POST -F 'alice=@C:\Users\v.novikov\go\src\github.com\vynovikov\study\postParser\internal\testFiles\long.txt' http://localhost:3000 - Done
 	probability

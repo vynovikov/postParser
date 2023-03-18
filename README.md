@@ -1,7 +1,12 @@
+# DataPiece
+
+DataPiece is the major object in context of application work. It's a pointer to mixture of byte slice and header. Application handles dataPieces and sends them via gRPC.
+
 ## Synchronization and ordering
+
 #### Application
 
-Application handles dataPieces using store methods Presence(), Dec(), Act(), RegisterBuffer(), BufferAdd(). These methods are executed by workers in concurrent way and needed to be synchronized:
+Application uses methods Presence(), Dec(), Act(), RegisterBuffer(), BufferAdd(). These methods are executed by workers in concurrent way and need to be synchronized:
 
 
 
@@ -11,7 +16,7 @@ sync.RWMutex is used for synchronization
 
 #### Store
 
-DataPieces are handled concurrently. Then they are reassembled and sent via gRPC. Its important to keep initial order when sending dataPiece groups which represent file data chunks. Otherwise file would be corrupted. For that reason store is used. Store action is briefly shown below:
+After application handling DataPieces are reassembled and sent via gRPC. Its important to keep initial order when sending dataPiece groups which represent file data chunks. Otherwise file would be corrupted. For that reason store is used. Store action is briefly shown below:
 
 ![](forManual/1.gif)
 
@@ -41,7 +46,16 @@ Key and certificate are in "tls" folder.
 
 ## Graceful shutdown
 
-After receiving interrupt signal, application finishes its current work first, then terminates.
+After receiving interrupt signal, application first finishes its current work , then terminates.
 ![](forManual/3.gif)
 
-g
+​																													\* durations of any process are shown schematically
+
+#### Action sequence
+
+* HTTP and HTTP listeners are closed immediately.  Application cannot receive new requests from that moment
+* Waiting for receiver goroutines to finish their job, then close chanIn (channel used to deliver new data for application). If there is no job, receiver and chanIn are closed immediately
+* Waiting for application workers to stop, then close chanOut (channel used to deliver data to transmitting module)
+* Waiting for transmitter goroutines to stop the close whole app
+
+mixture of sync.RWMutex and sync.WaitGroup is used to perform these actions.

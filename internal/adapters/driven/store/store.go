@@ -4,13 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"postParser/internal/logger"
-	"postParser/internal/repo"
 	"sort"
 	"strings"
 	"sync"
-
-	"github.com/google/go-cmp/cmp"
+	"workspaces/postParser/internal/repo"
 )
 
 type StoreStruct struct {
@@ -34,15 +31,16 @@ type Store interface {
 	//DetailedKey(string) repo.AppStoreKeyDetailed
 	BufferAdd(repo.DataPiece)
 	Register(repo.DataPiece, repo.Boundary) (repo.AppDistributorUnit, error)
-	RegisterBuffer(repo.DataPiece, repo.Boundary) ([]repo.AppDistributorUnit, []error)
+	RegisterBuffer(repo.AppStoreKeyGeneral, repo.Boundary) ([]repo.AppDistributorUnit, []error)
 	Inc(repo.AppStoreKeyGeneral, int)
-	Dec(repo.DataPiece) repo.Order
+	Dec(repo.DataPiece) (repo.Order, error)
 	Counter(repo.AppStoreKeyGeneral) int
 	//Reset(repo.AppStoreKeyGeneral)
-	Presense(repo.DataPiece) repo.Presense
+	Presence(repo.DataPiece) (repo.Presense, error)
 	Update(repo.DetailedRecord)
 	Delete(repo.AppStoreKeyGeneral)
 	Act(repo.DataPiece, repo.StoreChange)
+	Unblock(repo.AppStoreKeyGeneral)
 }
 
 func (s *StoreStruct) IsBufferEmpty() bool {
@@ -130,6 +128,7 @@ func (s *StoreStruct) Register(d repo.DataPiece, bou repo.Boundary) (repo.AppDis
 				if m3f.D.FormName == "" { // Disposition is not filled
 					header, err := d.H(bou)
 					//logger.L.Warnf("in store.Register header: %q, error %v\n", header, err)
+
 					if m3t, ok := m2[true]; ok { // true branch is present
 						if strings.Contains(err.Error(), "is ending part") {
 
@@ -194,23 +193,52 @@ func (s *StoreStruct) Register(d repo.DataPiece, bou repo.Boundary) (repo.AppDis
 					header, err := d.H(bou)
 					//logger.L.Warnf("in store.Register in dataPiece TS: %s, Part = %d, E() = %d -> header: %q, error: %v \n", d.TS(), d.Part(), d.E(), header, err)
 
-					if strings.Contains(err.Error(), "is ending part") { // header in dataPiece's body present
+					if err != nil {
+						if strings.Contains(err.Error(), "is ending part") { // header in dataPiece's body present
 
-						if repo.IsLastBoundary(m3t.D.H, header, bou) {
-							adu := repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: d.TS(), Part: m3t.B.Part}, M: repo.Message{S: "finish"}}}}
-							delete(s.R, askg)
+							if repo.IsLastBoundary(m3t.D.H, header, bou) {
+								adu := repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: d.TS(), Part: m3t.B.Part}, M: repo.Message{S: "finish"}}}}
+								delete(s.R, askg)
 
-							return adu, fmt.Errorf("in store.Register dataPiece group with TS \"%s\" is finished", d.TS())
-						}
+								return adu, fmt.Errorf("in store.Register dataPiece group with TS \"%s\" is finished", d.TS())
+							}
 
-						if repo.IsBoundary(m3t.D.H, header, bou) && bytes.Contains(header, []byte("Content-Disposition")) {
+							if repo.IsBoundary(m3t.D.H, header, bou) && bytes.Contains(header, []byte("Content-Disposition")) {
 
-							m3f.D.H = header[bytes.Index(header, []byte("Content-Disposition")):]
-							m3f.D.FormName, m3f.D.FileName = repo.GetFoFi(header)
-							m3f.B = m3t.B
+								//logger.L.Infoln("in store.Register this case")
+
+								m3f.D.H = header[bytes.Index(header, []byte("Content-Disposition")):]
+								m3f.D.FormName, m3f.D.FileName = repo.GetFoFi(header)
+								m3f.B = m3t.B
+								m3f.E = d.E()
+
+								//body:=d.GetBody(0)[len(header):]
+								d.BodyCut(len(header))
+
+								vv := map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{askd.IncPart(): {false: m3f}}
+
+								delete(s.R[askg], askd)
+
+								s.R[askg] = vv
+
+								adu := repo.AppDistributorUnit{}
+
+								switch d.E() {
+								case repo.True:
+									adu = repo.NewDistributorUnitStream(m3f, d, repo.Message{PreAction: repo.StopLast, PostAction: repo.Continue})
+								case repo.False:
+									//logger.L.Infof("in store.Register dataPiece body: %q\n", d.GetBody(0))
+									adu = repo.NewAppDistributorUnitUnaryComposed(m3f, d, repo.Message{PreAction: repo.StopLast, PostAction: repo.Close})
+								}
+
+								//logger.L.Warnf("in store.Register adu header %v, body %q\n", adu.H, adu.B.B)
+
+								return adu, fmt.Errorf("in store.Register new dataPiece group with TS \"%s\" and Part = %d", askg.TS, m3f.B.Part)
+							}
+
+							d.Prepend(m3t.D.H)
+
 							m3f.E = d.E()
-
-							d.BodyCut(len(header))
 
 							vv := map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{askd.IncPart(): {false: m3f}}
 
@@ -218,44 +246,35 @@ func (s *StoreStruct) Register(d repo.DataPiece, bou repo.Boundary) (repo.AppDis
 
 							s.R[askg] = vv
 
-							return repo.NewDistributorUnitStream(m3f, d, repo.Message{PreAction: repo.StopLast, PostAction: repo.Continue}), fmt.Errorf("in store.Register new dataPiece group with TS \"%s\" and Part = %d", askg.TS, m3f.B.Part)
+							return repo.NewDistributorUnitStream(m3f, d, repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}), nil
+
 						}
 
-						d.Prepend(m3t.D.H)
+						if strings.Contains(err.Error(), "no header found") {
 
-						m3f.E = d.E()
+							m3f.E = d.E()
 
-						vv := map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{askd.IncPart(): {false: m3f}}
+							vv := map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{askd.IncPart(): {false: m3f}}
+							delete(s.R[askg], askd)
+							s.R[askg] = vv
 
-						delete(s.R[askg], askd)
+							d.Prepend(m3t.D.H)
 
-						s.R[askg] = vv
+							return repo.NewDistributorUnitStream(s.R[askg][askd.IncPart()][false], d, repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}), nil
 
-						return repo.NewDistributorUnitStream(m3f, d, repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}), nil
+						}
+						if strings.Contains(err.Error(), "is the last") {
 
+							delete(s.R, askg)
+
+							adu := repo.NewDistributorUnitStreamEmpty(m3f, d, repo.Message{PreAction: repo.Continue, PostAction: repo.Finish})
+
+							return adu, fmt.Errorf("in store.Register dataPiece group with TS \"%s\" is finished", d.TS())
+						}
 					}
-					if strings.Contains(err.Error(), "no header found") {
-
-						m3f.E = d.E()
-
-						vv := map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{askd.IncPart(): {false: m3f}}
-						delete(s.R[askg], askd)
-						s.R[askg] = vv
-
-						d.Prepend(m3t.D.H)
-
-						return repo.NewDistributorUnitStream(s.R[askg][askd.IncPart()][false], d, repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}), nil
-
+					if repo.IsLastBoundary(m3t.D.H, header, bou) {
+						return repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.Tech, C: repo.CloseData{TS: d.TS()}}}, nil
 					}
-					if strings.Contains(err.Error(), "is the last") {
-
-						delete(s.R, askg)
-
-						adu := repo.NewDistributorUnitStreamEmpty(m3f, d, repo.Message{PreAction: repo.Continue, PostAction: repo.Finish})
-
-						return adu, fmt.Errorf("in store.Register dataPiece group with TS \"%s\" is finished", d.TS())
-					}
-
 				}
 				// no true branch
 				vvv := map[bool]repo.AppStoreValue{}
@@ -355,6 +374,8 @@ func (s *StoreStruct) Register(d repo.DataPiece, bou repo.Boundary) (repo.AppDis
 					//logger.L.Infof("in store.Register before deleting s.R %v, len(s.R[askg]) = %d\n", s.R[askg], len(s.R[askg]))
 
 					delete(s.R[askg], askd)
+
+					//logger.L.Infof("in store.Register after registering apu header %v, s.R: %v\n", d.GetHeader(), s.R)
 
 					return repo.NewDistributorUnitStream(m3f, d, repo.Message{PreAction: repo.Continue, PostAction: repo.Close}), fmt.Errorf("in store.Register dataPiece group with TS %q and Part \"%d\" is finished", d.TS(), m3f.B.Part)
 				}
@@ -466,14 +487,8 @@ func (s *StoreStruct) BufferAdd(d repo.DataPiece) {
 				s.Prepend(s.B[askg], d)
 			}
 		}
-
 	}
-
-	logger.L.Warnf("in store.BufferAdd buffer after adding dataPiece with body: %q\n", d.GetBody(0))
-	for i, v := range s.B[askg] {
-		logger.L.Warnf("in store.BufferAdd i = %d, header: %q, body: %q\n", i, v.GetHeader(), v.GetBody(0))
-	}
-
+	//logger.L.Infof("in store.BufferAdd buffer became %v\n", s.B[askg])
 }
 
 // Inserting new element to the beginning of slice, shifting the rest
@@ -499,7 +514,10 @@ func Swap(s []repo.DataPiece, i, j int) {
 }
 
 func (s *StoreStruct) CleanBuffer(ids repo.AppStoreBufferIDs) {
-	//logger.L.Infof("store.CleanBuffer invoked with ids: %v, len = %d\n", ids, len(ids.I))
+	s.L.Lock()
+	defer s.L.Unlock()
+	//logger.L.Infof("store.CleanBuffer invoked with s.B: %v, ids: %v, len = %d\n", s.B, ids, len(ids.I))
+
 	marked := 0
 	if len(ids.I) == 0 {
 		return
@@ -508,15 +526,7 @@ func (s *StoreStruct) CleanBuffer(ids repo.AppStoreBufferIDs) {
 	askg := ids.ASKG
 	// setting registerd dataPieces as empty
 	for i := range ids.I {
-
-		//logger.L.Infof("in store.CleanBuffer i = %d, element: %v, buffer element: %v\n", i, ids.I[i], s.B[askg])
-		/*
-			if s.B[askg][ids.I[i]].E() == repo.Last && s.Counter(askg) == 0 {
-
-				delete(s.B, askg)
-				return
-			}
-		*/
+		//logger.L.Infof("store.CleanBuffer s.B[askg]: %v, ids.I[i] = %d\n", s.B[askg], ids.I[i])
 		s.B[askg][ids.I[i]] = &repo.AppPieceUnit{}
 		marked++
 	}
@@ -524,27 +534,11 @@ func (s *StoreStruct) CleanBuffer(ids repo.AppStoreBufferIDs) {
 		delete(s.B, askg)
 		return
 	}
-	/*
-		logger.L.Infof("store.CleanBuffer s.B after nulling:\n")
-		for i := range s.B {
-			for j, w := range s.B[i] {
-				logger.L.Infof("store.CleanBuffer id = %d, value: %v\n", j, w)
-			}
-		}
-	*/
 	// sorting B putting empty ones to buffer beginning
 
 	sort.SliceStable(s.B[askg], func(a, b int) bool {
 		return s.B[askg][a].TS() < s.B[askg][b].TS()
 	})
-	/*
-		logger.L.Infof("store.CleanBuffer s.B after sorting:\n")
-		for i := range s.B {
-			for j, w := range s.B[i] {
-				logger.L.Infof("store.CleanBuffer j = %d, w:%v\n", j, w)
-			}
-		}
-	*/
 	//cutting off the buffer beginning
 	for j := range s.B[askg] {
 		//logger.L.Infof("store.CleanBuffer j = %d, s.B[ids.TS][j].TS(): %v\n", j, s.B[ids.TS][j].TS())
@@ -556,20 +550,18 @@ func (s *StoreStruct) CleanBuffer(ids repo.AppStoreBufferIDs) {
 			s.B[askg] = []repo.DataPiece{}
 		}
 	}
-	/*
-		logger.L.Infof("store.CleanBuffer s.B after deleting:\n")
-		for i := range s.B {
-			for j, w := range s.B[i] {
-				logger.L.Infof("store.CleanBuffer j = %d, w:%v\n", j, w)
-			}
-		}
-	*/
 }
 
 // Register buffer elements, considering they are sorted by Part
-func (s *StoreStruct) RegisterBuffer(d repo.DataPiece, bou repo.Boundary) ([]repo.AppDistributorUnit, []error) {
-	logger.L.Infof("store.RegisterBuffer invoked by d_body %q, s.R: %v, s.B: %v and s.C = %v\n", d.GetBody(0), s.R, s.B, s.C)
-	ids, adus, errs, repeat := repo.NewAppStoreBufferIDs(), make([]repo.AppDistributorUnit, 0), make([]error, 0), true
+func (s *StoreStruct) RegisterBuffer(askg repo.AppStoreKeyGeneral, bou repo.Boundary) ([]repo.AppDistributorUnit, []error) {
+	//logger.L.Infof("store.RegisterBuffer invoked, askg %v, s.R[askg]: %v, s.B[askg]: %v and s.C[askg]: %v\n", askg, s.R[askg], s.B[askg], s.C[askg])
+	/*
+		for i, v := range s.B[askg] {
+			logger.L.Infof("in store.RegisterBuffer buffer element %d is %v, s.C[askg].Cur = %v\n", i, v.GetHeader(), s.C[askg].Cur)
+		}
+	*/
+	ids, adus, errs, repeat, _ := repo.NewAppStoreBufferIDs(), make([]repo.AppDistributorUnit, 0), make([]error, 0), true, len(s.B[askg]) > 0 && !s.C[askg].Blocked
+	//logger.L.Infof("in store.RegisterBuffer debug: %t\n", debug)
 	/*p,_:=d.Part(),d.E()
 	  logger.L.Infof("in store.RegisterBuffer after register ")
 	*/
@@ -579,10 +571,32 @@ func (s *StoreStruct) RegisterBuffer(d repo.DataPiece, bou repo.Boundary) ([]rep
 		errs = append(errs, fmt.Errorf("in store.RegisterBuffer buffer has no elements"))
 		return adus, errs
 	}
+	//askg := repo.NewAppStoreKeyGeneralFromDataPiece(d)
+	if len(s.B[askg]) == 1 {
+		if s.B[askg][0].B() == repo.False && s.B[askg][0].E() == repo.False {
+			if s.C[askg].Cur == 1 && !s.C[askg].Blocked {
+				switch s.C[askg].Max {
+				case 1:
+					adus = append(adus, repo.NewAppDistributorUnitUnary(s.B[askg][0], bou, repo.Message{PreAction: repo.Start, PostAction: repo.Finish}))
+				default:
+					adus = append(adus, repo.NewAppDistributorUnitUnary(s.B[askg][0], bou, repo.Message{PreAction: repo.None, PostAction: repo.Finish}))
+				}
+				return adus, nil
+
+			}
+		}
+	}
+	if len(s.B[askg]) == 1 && s.C[askg].Cur == 1 {
+		if s.C[askg].Blocked {
+			errs = append(errs, fmt.Errorf("in store.RegisterBuffer buffer has single element and current counter == 1 and blocked"))
+			return adus, errs
+		}
+
+	}
 
 	for i, v := range s.B {
 		//logger.L.Infof("in store.RegisterBuffer checking group of TS \"%s\"\n", i.TS)
-		if i.TS != d.TS() {
+		if i.TS != askg.TS {
 			//logger.L.Errorf("in store.RegisterBuffer askg TS is \"%s\" != d.TS() \"%s\"\n", i.TS, d.TS())
 			continue
 		}
@@ -594,7 +608,7 @@ func (s *StoreStruct) RegisterBuffer(d repo.DataPiece, bou repo.Boundary) ([]rep
 			for j, w := range v {
 
 				askg, askd := repo.NewAppStoreKeyGeneralFromDataPiece(w), repo.NewAppStoreKeyDetailed(w)
-				//logger.L.Infof("in store.RegisterBuffer j = %d w = %v, counter %d, ids %d\n", j, w, s.Counter(askg), ids.GetIDs(askg))
+				//logger.L.Infof("in store.RegisterBuffer j = %d w header %v body %q, counter %d, ids %d, s.B[askg] %v\n", j, w.GetHeader(), w.GetBody(0), s.Counter(askg), ids.GetIDs(askg), s.B[askg])
 
 				if isIn(j, ids.GetIDs(askg)) { // index'v been registered already, skipping
 
@@ -607,29 +621,58 @@ func (s *StoreStruct) RegisterBuffer(d repo.DataPiece, bou repo.Boundary) ([]rep
 				}
 
 				if m1, ok := s.R[askg]; ok {
+					//logger.L.Infoln("in store.RegisterBuffer askg matched")
 					if _, ok := m1[askd]; ok {
-
+						//logger.L.Infoln("in store.RegisterBuffer askd matched")
 						//logger.L.Infof("in store.RegisterBuffer checking dataPiece with header %v, body %q, counter = %v\n", w.GetHeader(), w.GetBody(0), s.C)
-						//logger.L.Infof("in store.RegisterBuffer dataPiece with header %v, body %q matched to R\n", w.GetHeader(), w.GetBody(0))
-
-						adu, err := s.Register(w, bou)
-						//logger.L.Infof("in store.RegisterBuffer after register adu header: %v, body: %q error: %v\n", adu.H, adu.B.B, err)
-						if err != nil {
-							errs = append(errs, err)
-						}
-
-						if !cmp.Equal(adu, repo.AppDistributorUnit{}) {
-							if o := s.Dec(w); o == repo.Last {
-								//logger.L.Errorln("in store.RegisterBuffer finish")
-								adu.H.S.M.PostAction = repo.Finish
+						//logger.L.Infof("in store.RegisterBuffer dataPiece with header %v matched to R\n", w.GetHeader())
+						if !s.C[askg].Blocked {
+							adu, err := s.Register(w, bou)
+							//logger.L.Infof("in store.RegisterBuffer after register adu header: %v, s.R: %v, counter: %v\n", adu.H, s.R, s.C)
+							if err != nil {
+								errs = append(errs, err)
 							}
+							if s.C[askg].Cur == 1 {
+								if adu.H.T == repo.Unary {
+									adu.H.U.M.PostAction = repo.Finish
+								}
+								if adu.H.T == repo.ClientStream {
+									adu.H.S.M.PostAction = repo.Finish
+								}
+								//logger.L.Infof("in store.RegisterBuffer after setting finish adu header: %v\n", adu.H)
+							}
+							s.Dec(w)
+
+							adus = append(adus, adu)
+							ids.Add(repo.NewAppStoreBufferID(i, j))
+							//logger.L.Infof("in store.RegisterBuffer ids became askg: %v, ids.I %d, len(ids.I) = %d\n", ids.ASKG, ids.I, len(ids.I))
+
+							continue
+						}
+						if s.C[askg].Blocked && s.C[askg].Cur > 1 {
+							adu, err := s.Register(w, bou)
+							//logger.L.Infof("in store.RegisterBuffer after register adu header: %v, s.R: %v, counter: %v\n", adu.H, s.R, s.C)
+							if err != nil {
+								errs = append(errs, err)
+							}
+
+							s.Dec(w)
+
 							//logger.L.Infof("in store.RegisterBuffer after counter check adu header: %v, body: %q\n", adu.H, adu.B.B)
 							adus = append(adus, adu)
 							//logger.L.Infof("in store.RegisterBuffer counter decremented and became %d\n", s.Counter(askg))
 							repeat = true
 							ids.Add(repo.NewAppStoreBufferID(i, j))
+							//logger.L.Infof("in store.RegisterBuffer ids became askg: %v, ids %d\n", ids.ASKG, ids.I)
 							continue
+
 						}
+						if s.C[askg].Blocked && s.C[askg].Cur == 1 {
+							errs = append(errs, fmt.Errorf("in store.RegisterBuffer buffer has single element and current counter == 1 and fuse"))
+							repeat = false
+							break
+						}
+
 					}
 				}
 				repeat = false
@@ -637,12 +680,13 @@ func (s *StoreStruct) RegisterBuffer(d repo.DataPiece, bou repo.Boundary) ([]rep
 		}
 		//logger.L.Infof("in store.RegisterBuffer checking group of TS \"%s\" is finiahed\n", i.TS)
 	}
-	if len(ids.I) > 0 && len(s.B) > 0 {
-		//logger.L.Infof("in store.RegisterBuffer ids: %v\n", ids)
+	//logger.L.Infof("in store.RegisterBuffer before clearing buffer ids: %v, len(ids.I) = %d, len(s.B[askg]) = %d\n", ids, len(ids.I), len(s.B[askg]))
+	if len(ids.I) > 0 && len(s.B[askg]) > 0 {
+		//logger.L.Infof("in store.RegisterBuffer trying to clear buffer ids: %v\n", ids)
 		s.CleanBuffer(*ids)
 	}
 
-	//logger.L.Warnf("in store.RegisterBuffer afer all handling d_body %q, s.R: %v, s.B: %v, s.C: %v\n", d.GetBody(0), s.R, s.B, s.C)
+	//logger.L.Infof("in store.RegisterBuffer after all s.R: %v, s.B: %v, s.C: %v\n", s.R, s.B, s.C)
 	return adus, errs
 }
 
@@ -659,49 +703,80 @@ func (s *StoreStruct) Inc(askg repo.AppStoreKeyGeneral, n int) {
 	}
 	c.Max = n
 	c.Cur = n
+	c.Blocked = true
 	s.C[askg] = c
 
 }
 
-// Todo: Max-- and Cur-- if AppSub
-func (s *StoreStruct) Dec(d repo.DataPiece) repo.Order {
+// Decrements counter if possible and returns result and error
+func (s *StoreStruct) Dec(d repo.DataPiece) (repo.Order, error) {
 	//logger.L.Infof("store.Dec invoked with dataPiece header %v,body %q, s.C: %v\n", d.GetHeader(), d.GetBody(0), s.C)
 	askg := repo.NewAppStoreKeyGeneralFromDataPiece(d)
-	//s.L.Lock()
-	//defer s.L.Unlock()
+	s.L.Lock()
+	defer s.L.Unlock()
+
 	if cm, ok := s.C[askg]; ok {
-		//logger.L.Infof("in store.Dec cm before %v\n", cm)
-		if d.IsSub() {
-			cm.Cur--
-			cm.Max--
-			//logger.L.Infof("in store.Dec cm after decrementing %v\n", cm)
-		} else {
-			cm.Cur--
-		}
+		started := cm.Started
 
-		//logger.L.Infof("in store.Dec cm after %v\n", cm)
-		delete(s.C, askg)
-		s.C[askg] = cm
-		//logger.L.Infof("in store.Dec s.C after %v\n", s.C)
-		if cm.Cur == 0 && cm.Max-cm.Cur == 1 {
-			//logger.L.Errorln("in store.Dec Cur == 0, resetting Store")
-			s.Reset(askg)
-			return repo.FirstAndLast
-		}
-		if cm.Max-cm.Cur == 1 {
-			return repo.First
-		}
-		if cm.Cur == cm.Max {
-			return repo.Unordered
-		}
-		if cm.Cur == 0 {
-			//logger.L.Errorln("in store.Dec Cur == 0, resetting Store")
-			s.Reset(askg)
-			return repo.Last
-		}
+		if (cm.Blocked && cm.Cur > 1) ||
+			(cm.Blocked && cm.Cur == 1 && d.B() == repo.False && d.E() != repo.False) ||
 
+			!cm.Blocked {
+			//logger.L.Infof("in store.Dec cm before %v\n", cm)
+			if d.IsSub() {
+				cm.Cur--
+				cm.Max--
+				//logger.L.Infof("in store.Dec cm after decrementing %v\n", cm)
+			} else {
+				cm.Cur--
+
+				if !cm.Started {
+					cm.Started = true
+				}
+			}
+
+			//logger.L.Infof("in store.Dec dataPiece with header %v made cm %v\n", d.GetHeader(), cm)
+			delete(s.C, askg)
+			s.C[askg] = cm
+			//logger.L.Infof("in store.Dec s.C after %v\n", s.C)
+			if cm.Cur == 0 && cm.Max-cm.Cur == 1 {
+				//logger.L.Errorln("in store.Dec Cur == 0, resetting Store")
+
+				if !started && cm.Started {
+
+					if d.B() == repo.False && d.E() == repo.False {
+						s.Reset(askg)
+						return repo.FirstAndLast, nil
+					}
+
+					return repo.First, nil
+				}
+				if d.B() == repo.True {
+					return repo.Intermediate, nil
+				}
+				// d.E() == repo.False
+
+			}
+			if !started && cm.Started { // may be different d.Part
+				return repo.First, nil
+			}
+			if cm.Cur == cm.Max {
+				return repo.Unordered, nil
+			}
+			if cm.Cur == 0 {
+
+				if s.C[askg].Blocked {
+					return repo.Intermediate, nil
+				}
+				// !Blocked
+				s.Reset(askg)
+				return repo.Last, nil
+			}
+			return repo.Intermediate, nil
+		}
+		return repo.Unordered, fmt.Errorf("in store.Dec cannot dec further")
 	}
-	return repo.Intermediate
+	return repo.Unordered, fmt.Errorf("in store.Dec askg \"%v\" not found", askg)
 }
 func (s *StoreStruct) Counter(askg repo.AppStoreKeyGeneral) int {
 	s.L.RLock()
@@ -768,14 +843,17 @@ func isIn(i int, d []int) bool {
 	return false
 }
 
-func (s *StoreStruct) Presense(d repo.DataPiece) repo.Presense {
+func (s *StoreStruct) Presence(d repo.DataPiece) (repo.Presense, error) {
 	askg, askd, vv := repo.NewAppStoreKeyGeneralFromDataPiece(d), repo.NewAppStoreKeyDetailed(d), make(map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue)
-	//logger.L.Infof("store.Presense s.R(): %v, dataPiece's header %v\n", s.R, d.GetHeader())
+	//logger.L.Infof("store.Presense invoked by dataPiece's header %v, s.R: %v, s.C[askg]: %v\n", d.GetHeader(), s.R, s.C[askg])
 	if m1, ok := s.R[askg]; ok {
 		//logger.L.Infoln("store.Presense askg met")
 		//logger.L.Infof("store.Presense askd.T(): %v, m1: %v\n", askd.T(), m1)
-		if m2, ok := m1[askd]; ok {
+		if m2, ok := m1[askd]; ok && d.B() == repo.True {
 			//logger.L.Infoln("store.Presense askd met")
+			if s.C[askg].Cur == 1 && s.C[askg].Blocked {
+				return repo.Presense{}, fmt.Errorf("in store.Presense matched but Cur == 1 && Blocked")
+			}
 			vv[askd.F()] = m2
 			//logger.L.Infof("store.Presense vv: %v\n", vv)
 			if m2t, ok := m1[askd.T()]; ok && d.E() == repo.Probably {
@@ -783,44 +861,46 @@ func (s *StoreStruct) Presense(d repo.DataPiece) repo.Presense {
 				//logger.L.Infof("store.Presense askd.T(): %v, m1: %v\n", askd.T(), m1)
 				vv[askd.T()] = m2t
 				//logger.L.Infof("store.Presense vv: %v\n", vv)
-				return repo.NewPresense(true, true, true, vv)
+				return repo.NewPresense(true, true, true, vv), nil
 			}
-			return repo.NewPresense(true, true, false, vv)
+			return repo.NewPresense(true, true, false, vv), nil
 		}
 		if d.IsSub() {
 			//logger.L.Infoln("store.Presense AppSub branch")
 			if m2f, ok := s.R[askg][askd.F()]; ok && m2f[false].E == repo.Probably {
 				//logger.L.Infof("store.Presense AppSub branch m2f: %v", m2f)
 				vv[askd.F()] = m2f
-				return repo.NewPresense(true, true, true, vv)
+				return repo.NewPresense(true, true, true, vv), nil
 			}
 			//logger.L.Infof("in store.Presense AppSub case s.R: %v\n", s.R)
-			return repo.NewPresense(true, false, false, nil)
+			return repo.NewPresense(true, false, false, nil), nil
 		}
 		if d.B() == repo.False && d.E() == repo.Probably {
 			if m2t, ok := s.R[askg][askd.T()]; ok && m2t[true].E == repo.Probably {
 				//logger.L.Infof("store.Presense AppSub branch m2f: %v", m2f)
 				vv[askd.T()] = m2t
-				return repo.NewPresense(true, true, true, vv)
+				return repo.NewPresense(true, true, true, vv), nil
 			}
-			return repo.NewPresense(true, true, false, nil)
+			return repo.NewPresense(true, true, false, nil), nil
 		}
-		return repo.NewPresense(true, false, false, nil)
+		return repo.NewPresense(true, false, false, nil), nil
 	}
 	if d.B() == repo.False && d.E() == repo.Probably {
 
 	}
-	return repo.NewPresense(false, false, false, nil)
+	return repo.Presense{}, nil
 }
 
 func (s *StoreStruct) Act(d repo.DataPiece, sc repo.StoreChange) {
-	//logger.L.Infof("store.ACT is invoked for dataPiece header %v, body %q, sc: %v, s.R: %v, s.B: %v\n", d.GetHeader(), d.GetBody(0), sc, s.R, s.B)
+	//logger.L.Infof("store.ACT is invoked for dataPiece header %v, sc.A: %d, s.R: %v, s.B: %v\n", d.GetHeader(), sc.A, s.R, s.B)
 	//logger.L.Infof("store.ACT is invoked for dataPiece with body %q, s.R: %v, s.B: %v\n", d.GetBody(0), s.R, s.B)
 	askg, vv := repo.NewAppStoreKeyGeneralFromDataPiece(d), make(map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue)
 
 	switch sc.A {
 	case repo.Change:
-		if m1, ok := s.R[askg]; ok {
+		if m1, ok := s.R[askg]; ok { // ASKD met
+			//logger.L.Infof("in store.Act repo.NewAppStoreKeyDetailed(d): %v\n", repo.NewAppStoreKeyDetailed(d))
+
 			for i, _ := range sc.From {
 				if _, ok := m1[i]; ok {
 					//logger.L.Infof("in store.Act deleting v: %v\n", v)
@@ -831,7 +911,7 @@ func (s *StoreStruct) Act(d repo.DataPiece, sc repo.StoreChange) {
 			}
 			for i, v := range sc.To {
 				s.R[askg][i] = v
-				//logger.L.Infof("in store.Act after adding s.R: %v\n", s.R)
+				//logger.L.Infof("in store.Act dataPiece header %v ==> s.R: %v\n", d.GetHeader(), s.R)
 				return
 			}
 		}
@@ -841,6 +921,7 @@ func (s *StoreStruct) Act(d repo.DataPiece, sc repo.StoreChange) {
 				vv[i] = v
 				s.R[askg] = vv
 				//logger.L.Infof("in store.Act after adding s.R: %v\n", s.R)
+				//logger.L.Infof("in store.Act dataPiece header %v ==> s.R: %v\n", d.GetHeader(), s.R)
 				return
 			}
 		}
@@ -872,4 +953,16 @@ func (s *StoreStruct) Update(dr repo.DetailedRecord) {
 
 func (s *StoreStruct) Delete(askg repo.AppStoreKeyGeneral) {
 	delete(s.R, askg)
+}
+
+func (s *StoreStruct) Unblock(askg repo.AppStoreKeyGeneral) {
+	s.L.Lock()
+	defer s.L.Unlock()
+
+	mr := s.C[askg]
+	mr.Blocked = s.L.TryLock()
+
+	delete(s.C, askg)
+
+	s.C[askg] = mr
 }

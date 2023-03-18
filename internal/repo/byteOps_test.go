@@ -2,8 +2,8 @@ package repo
 
 import (
 	"errors"
-	"postParser/internal/logger"
 	"testing"
+	"workspaces/postParser/internal/logger"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/suite"
@@ -2300,6 +2300,52 @@ func (s *byteOpsSuite) TestIsBoudary() {
 	for _, v := range tt {
 		s.Run(v.name, func() {
 			s.Equal(v.want, IsBoundary(v.b, v.n, v.bou))
+		})
+	}
+}
+
+func (s *byteOpsSuite) TestIsLastBoundaryPart() {
+	tt := []struct {
+		name string
+		b    []byte
+		bou  Boundary
+		want bool
+	}{
+		{
+			name: "ordinary len(b)",
+			b:    []byte("---63643643643--"),
+			bou:  Boundary{Prefix: []byte("--"), Root: []byte("-------------63643643643")},
+			want: true,
+		},
+
+		{
+			name: "len(b) == 1",
+			b:    []byte("-"),
+			bou:  Boundary{Prefix: []byte("--"), Root: []byte("-------------63643643643")},
+			want: true,
+		},
+		{
+			name: "len(b) == 2",
+			b:    []byte("--"),
+			bou:  Boundary{Prefix: []byte("--"), Root: []byte("-------------63643643643")},
+			want: true,
+		},
+		{
+			name: "wrong 1",
+			b:    []byte("---63643643642--"),
+			bou:  Boundary{Prefix: []byte("--"), Root: []byte("-------------63643643643")},
+			want: false,
+		},
+		{
+			name: "wrong 2",
+			b:    []byte("---73643643643--"),
+			bou:  Boundary{Prefix: []byte("--"), Root: []byte("-------------63643643643")},
+			want: false,
+		},
+	}
+	for _, v := range tt {
+		s.Run(v.name, func() {
+			s.Equal(v.want, IsLastBoundaryPart(v.b, v.bou))
 		})
 	}
 }

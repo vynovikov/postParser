@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"postParser/internal/adapters/driven/grpc/pb"
 	"strings"
+	"sync"
 	"time"
+	"workspaces/postParser/internal/adapters/driven/rpc/pb"
 )
 
 type Unit struct {
@@ -63,9 +64,10 @@ func NewVocabulary(b Boundary) Vocabulaty {
 }
 
 type ReceiverHeader struct {
-	Part int
-	TS   string
-	Bou  Boundary
+	Part    int
+	TS      string
+	Bou     Boundary
+	Unblock bool
 }
 type ReceiverBody struct {
 	B []byte
@@ -81,6 +83,14 @@ func (rh *ReceiverHeader) SetPart(p int) {
 type ReceiverUnit struct {
 	H ReceiverHeader
 	B ReceiverBody
+}
+
+func (r ReceiverUnit) GetHeader() string {
+	return fmt.Sprint(r.H)
+}
+
+func (r ReceiverUnit) GetBody() []byte {
+	return r.B.B
 }
 
 func NewReceiverUnit(h ReceiverHeader, b ReceiverBody) ReceiverUnit {
@@ -186,6 +196,11 @@ func NewAppFeederHeaderBP(sh SepHeader, sb SepBody, pp int) AppFeederHeaderBP {
 	}
 }
 
+type AppUnit interface {
+	GetHeader() string
+	GetBody() []byte
+}
+
 type AppFeederUnit struct {
 	R ReceiverUnit
 }
@@ -198,6 +213,12 @@ func NewAppFeederUnit(r ReceiverUnit) AppFeederUnit {
 
 func (afu *AppFeederUnit) SetReceiverUnit(r ReceiverUnit) {
 	afu.R = r
+}
+func (a AppFeederUnit) GetHeader() string {
+	return fmt.Sprint(a.R.H)
+}
+func (a AppFeederUnit) GetBody() []byte {
+	return a.R.B.B
 }
 
 func (b *Boundary) SetBoundaryPrefix(bs []byte) {
@@ -334,7 +355,7 @@ type UnaryData struct {
 	M  Message // Control message
 }
 type CloseData struct {
-	D []StreamKey // indexes to delete
+	TS string // indexes to delete
 }
 
 func NewUnary(uk UnaryKey, f FiFo, m Message) UnaryData {
@@ -371,6 +392,14 @@ func NewStreamData(sk StreamKey, f FiFo, sm Message) StreamData {
 		SK: sk,
 		F:  f,
 		M:  sm,
+	}
+}
+
+func NewUnaryData(uk UnaryKey, f FiFo, m Message) UnaryData {
+	return UnaryData{
+		UK: uk,
+		F:  f,
+		M:  m,
 	}
 }
 
@@ -419,6 +448,12 @@ func NewAppDistributorUnit(h AppDistributorHeader, b AppDistributorBody) AppDist
 		H: h,
 		B: b,
 	}
+}
+func (adu AppDistributorUnit) GetHeader() string {
+	return fmt.Sprint(adu.H)
+}
+func (adu AppDistributorUnit) GetBody() []byte {
+	return adu.B.B
 }
 
 func NewDistributorUnitStream(ask AppStoreValue, d DataPiece, m Message) AppDistributorUnit {
@@ -479,6 +514,23 @@ func NewAppDistributorUnitUnary(d DataPiece, bou Boundary, m Message) AppDistrib
 	}
 }
 
+func NewAppDistributorUnitUnaryComposed(ask AppStoreValue, d DataPiece, m Message) AppDistributorUnit {
+	//logger.L.Infof("repo.NewAppDistributorUnitUnaryComposed invoked with dataPiece header: %v, body: %q, message: %v\n", d.GetHeader(), d.GetBody(0), m)
+	//b:=make([]byte,0)
+	uk := NewUnaryKey(d.TS(), d.Part())
+	fifo := NewFiFo(ask.D.FormName, ask.D.FileName)
+	sm := m
+
+	ud := NewUnaryData(uk, fifo, sm)
+	//logger.L.Infof("in repo.NewDistributorUnitFromStore sk = %v\n", sk)
+	adu := AppDistributorUnit{
+		H: NewAppDistributorHeader(Unary, StreamData{}, ud),
+		B: NewDistributorBody(d.GetBody(0)),
+	}
+
+	return adu
+}
+
 type CallBoard struct {
 	FormName     string
 	FileName     string
@@ -533,7 +585,9 @@ type AppPieceHeader struct {
 }
 
 func NewAppPieceHeader() AppPieceHeader {
-	return AppPieceHeader{}
+	aph := AppPieceHeader{}
+	//logger.L.Infof("in repo.NewAppPieceHeader returning %v\n", aph)
+	return aph
 }
 
 func (p *AppPieceHeader) SetTS(ts string) {
@@ -703,7 +757,9 @@ type AppStoreKeyDetailed struct {
 }
 
 func NewAppStoreKeyDetailed(d DataPiece) AppStoreKeyDetailed {
+	//logger.L.Infof("in store.NewAppStoreKeyDetailed d.Header %v, d.IsSub(): %t\n", d.GetHeader(), d.IsSub())
 	if d.IsSub() {
+
 		return AppStoreKeyDetailed{
 			SK: StreamKey{
 				TS:   d.TS(),
@@ -713,11 +769,12 @@ func NewAppStoreKeyDetailed(d DataPiece) AppStoreKeyDetailed {
 			S: true,
 		}
 	}
-	return AppStoreKeyDetailed{SK: StreamKey{
-		TS:   d.TS(),
-		Part: d.Part(),
-		//N:    true,
-	},
+	return AppStoreKeyDetailed{
+		SK: StreamKey{
+			TS:   d.TS(),
+			Part: d.Part(),
+			//N:    true,
+		},
 		S: false,
 	}
 
@@ -823,6 +880,12 @@ func NewAppStoreKeyGeneralFromDataPiece(d DataPiece) AppStoreKeyGeneral {
 func NewAppStoreKeyGeneralFromASKD(askd AppStoreKeyDetailed) AppStoreKeyGeneral {
 	return AppStoreKeyGeneral{
 		TS: askd.SK.TS,
+	}
+}
+
+func NewAppStoreKeyGeneralFromFeeder(afu AppFeederUnit) AppStoreKeyGeneral {
+	return AppStoreKeyGeneral{
+		TS: afu.R.H.TS,
 	}
 }
 
@@ -1299,43 +1362,6 @@ func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) 
 	return sc, nil
 }
 
-/*
-// get slice of AppStoreKeyDetailed from gr, putting S == false at first
-func getFrom(gr map[AppStoreKeyDetailed]map[bool]AppStoreValue) map[AppStoreKeyDetailed]map[bool]AppStoreValue {
-
-		n, askd,from := 0, AppStoreKeyDetailed{}
-
-		if len(gr) == 0 {
-			return askds
-		}
-		if len(gr) == 1 {
-			for i := range gr {
-				askds = append(askds, i)
-			}
-			return askds
-		}
-		for i := range gr {
-
-			if n == 0 && i.S {
-				askd = i
-				n++
-				continue
-			}
-			if n == 1 && !i.S {
-				askds = append(askds, i)
-				askds = append(askds, askd)
-				return askds
-			}
-
-			askds = append(askds, i)
-			n++
-		}
-
-		//logger.L.Infof("in repo.getFrom askds: %v\n", askds)
-
-		return askds
-	}
-*/
 type StoreAction int
 
 const (
@@ -1353,8 +1379,10 @@ type StoreChange struct {
 }
 
 type Counter struct {
-	Max int
-	Cur int
+	Max     int
+	Cur     int
+	Started bool
+	Blocked bool
 }
 
 func NewCounter() Counter {
@@ -1390,4 +1418,159 @@ func IsPartChanged(sc StoreChange) bool {
 		break
 	}
 	return pTo == pFrom+1
+}
+
+type rType int
+
+type GRequest struct {
+	ts        string
+	FieldName string
+	FileInfo  bool
+	FileData  bool
+	FileName  string
+	ByteChunk []byte
+	IsFirst   bool
+	IsLast    bool
+	RType     rType
+}
+
+const (
+	U rType = iota
+	S
+)
+
+type GId struct {
+	wantIDs []int
+	gotIDs  []int
+}
+
+func NewGId() *GId {
+	return &GId{}
+}
+func (g *GId) AddGIds(i, j int) {
+	g.gotIDs = append(g.gotIDs, i)
+	g.wantIDs = append(g.wantIDs, j)
+}
+
+// Compares wanted and real data
+// todo x is wanted, y is real
+func IsOk(name string, want, got []GRequest) bool {
+
+	//logger.L.Infof("in repo IsOk len(got) = %d\n", len(got))
+
+	found, ids, nlast := false, NewGId(), 0
+
+	if len(want) == 0 || len(got) == 0 || len(want) != len(got) {
+		return false
+	}
+	if len(want) == 1 && len(got) == 1 && got[0].IsFirst && got[0].IsLast {
+		return true
+	}
+
+	// free to call x & y by indexes
+
+	if !got[0].IsFirst {
+		return false
+	}
+	if !got[len(got)-1].IsLast {
+		return false
+	}
+
+	// comparing x and y
+
+	for i, v := range got {
+
+		if v.RType == U { // unary comparision
+
+			for _, w := range want {
+				if v.FieldName == w.FieldName &&
+					v.FileName == w.FileName &&
+					len(v.ByteChunk) == len(w.ByteChunk) &&
+					bytes.Contains(v.ByteChunk, w.ByteChunk) {
+
+					found = true
+
+					if len(want) == 1 && len(got) == 1 {
+						return true
+					}
+
+					//x = append(x[:i], x[i+1:]...)
+					//want = append(want[:j], want[j+1:]...)
+
+					break
+				}
+			}
+			if !found {
+				return false
+			}
+			found = false
+		}
+
+		//logger.L.Infof("in repo IsOk v = %v\n", v)
+
+		if v.RType == S && v.FileInfo { // stream comparision
+			found = true
+			for j, w := range want {
+				found = false
+
+				//logger.L.Infof("in repo.IsOk v.FieldName = %s, w.FieldName = %v, equal? %t\n", v.FieldName, w.FieldName, v.FieldName == w.FieldName)
+				//		logger.L.Infof("in repo.IsOk v.FileName = %s, w.FileName = %v, equal? %t\n", v.FileName, w.FileName, v.FileName == w.FileName)
+
+				if v.RType == w.RType && v.FieldName == w.FieldName && v.FileName == w.FileName {
+
+					//logger.L.Infof("in repo.IsOk matched v = %v, w = %v\n", v, w)
+
+					nlast = 0
+
+					m := j + 1
+
+					for m < len(want) && want[m].FileData { // looping through want
+
+						found = false
+
+						//logger.L.Infof("in repo.IsOk want[m].FieldName: %q, want[m].ByteChunk: %q\n", want[m].FieldName, want[m].ByteChunk)
+
+						n := Max(i+1, nlast+1)
+
+						// for each m, looping through got do not restart after match
+
+						for n < len(got) {
+
+							if len(want[m].ByteChunk) == len(got[n].ByteChunk) && bytes.Contains(want[m].ByteChunk, got[n].ByteChunk) {
+
+								//logger.L.Infof("in repo.IsOk want[m].ByteChunk: %q, got[n].ByteChunk: %q\n", want[m].ByteChunk, got[n].ByteChunk)
+
+								nlast = n
+
+								found = true
+
+								ids.AddGIds(n, m)
+
+								break
+							}
+							n++
+						}
+						if !found {
+							return false
+						}
+						m++
+					}
+				}
+			}
+		}
+	}
+
+	return true
+}
+
+type WaitGroups struct {
+	M       map[AppStoreKeyGeneral]*sync.WaitGroup
+	Workers sync.WaitGroup
+	Sender  sync.WaitGroup
+}
+
+type Channels struct {
+	ChanIn  chan AppFeederUnit
+	ChanOut chan AppDistributorUnit
+	Done    chan struct{}
 }

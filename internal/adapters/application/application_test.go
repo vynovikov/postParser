@@ -2,11 +2,16 @@ package application
 
 import (
 	"errors"
-	"postParser/internal/adapters/driven/store"
-	"postParser/internal/repo"
+	"sync"
 	"testing"
+	"workspaces/postParser/internal/adapters/driven/store"
+	"workspaces/postParser/internal/repo"
 
 	"github.com/stretchr/testify/suite"
+)
+
+var (
+	a AppService
 )
 
 type applicationSuite struct {
@@ -17,50 +22,81 @@ func TestApplicationSuite(t *testing.T) {
 	suite.Run(t, new(applicationSuite))
 }
 
+func (s *applicationSuite) SetupTest() {
+	a = NewAppService(make(chan struct{}))
+	//a.MountLogger(NewDistributorSpyLogger())
+
+}
+
 func (s *applicationSuite) TestHandle() {
+	go func() {
+		for {
+			<-a.C.ChanOut
+		}
+	}()
 	tt := []struct {
 		name    string
 		a       *App
 		d       repo.DataPiece
 		bou     repo.Boundary
+		wg      sync.WaitGroup
 		wantA   *App
-		wantADU []repo.AppDistributorUnit
 		wantErr []error
 	}{
 		{
 			name: "B() == repo.False, E() == repo.False, counter.Cur == counter.Max == 0, ADU preAction == repo.Start, postAction == repo.Finish",
 			a: &App{
+				A: a,
 				S: &store.StoreStruct{
-					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
-					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 1, Cur: 1}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{
+						{TS: "qqq"}: {Started: false, Blocked: false, Max: 1, Cur: 1},
+					},
 				},
+				L: &DistributorSpyLogger{},
 			},
-
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.False, E: repo.False}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"\r\n\r\nazazaza")},
 			},
 			wantA: &App{
+				A: a,
 				S: &store.StoreStruct{
-					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
-					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 					C: map[repo.AppStoreKeyGeneral]repo.Counter{},
 				},
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.Unary,
+								U: repo.UnaryData{
+									UK: repo.UnaryKey{
+										TS:   "qqq",
+										Part: 3,
+									},
+									F: repo.FiFo{FormName: "alice"},
+									M: repo.Message{PreAction: repo.Start, PostAction: repo.Finish},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azazaza"),
+							},
+						},
+					},
+				},
 			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{UK: repo.UnaryKey{TS: "qqq", Part: 3}, F: repo.FiFo{FormName: "alice"}, M: repo.Message{PreAction: repo.Start, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
-			},
+
 			wantErr: []error{},
 		},
-
 		{
 			name: "B() == repo.False, E() == repo.False, counter.Cur == counter.Max decrementing counter, ADU preAction = repo.Start",
 			a: &App{
 				S: &store.StoreStruct{
 					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 4}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 4, Started: false, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 
 			d: &repo.AppPieceUnit{
@@ -70,11 +106,30 @@ func (s *applicationSuite) TestHandle() {
 				S: &store.StoreStruct{
 					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{UK: repo.UnaryKey{TS: "qqq", Part: 3}, F: repo.FiFo{FormName: "alice"}, M: repo.Message{PreAction: repo.Start, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.Unary,
+								U: repo.UnaryData{
+									UK: repo.UnaryKey{
+										TS:   "qqq",
+										Part: 3,
+									},
+									F: repo.FiFo{FormName: "alice"},
+									M: repo.Message{PreAction: repo.Start, PostAction: repo.None},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azazaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{},
 		},
@@ -85,8 +140,10 @@ func (s *applicationSuite) TestHandle() {
 				S: &store.StoreStruct{
 					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 
 			d: &repo.AppPieceUnit{
@@ -96,11 +153,30 @@ func (s *applicationSuite) TestHandle() {
 				S: &store.StoreStruct{
 					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{UK: repo.UnaryKey{TS: "qqq", Part: 3}, F: repo.FiFo{FormName: "alice"}, M: repo.Message{PreAction: repo.None, PostAction: repo.None}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.Unary,
+								U: repo.UnaryData{
+									UK: repo.UnaryKey{
+										TS:   "qqq",
+										Part: 3,
+									},
+									F: repo.FiFo{FormName: "alice"},
+									M: repo.Message{PreAction: repo.None, PostAction: repo.None},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azazaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{},
 		},
@@ -111,8 +187,10 @@ func (s *applicationSuite) TestHandle() {
 				S: &store.StoreStruct{
 					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 4}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 4, Started: false, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 
 			d: &repo.AppPieceUnit{
@@ -137,11 +215,36 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 0}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Start, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 0,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Start,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azazaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{
 				errors.New("in store.RegisterBuffer buffer has no elements"),
@@ -158,8 +261,10 @@ func (s *applicationSuite) TestHandle() {
 							&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("bzbzbzb")}},
 						},
 					},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 4}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 4, Started: false, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 
 			d: &repo.AppPieceUnit{
@@ -184,12 +289,59 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 0, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Start, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzbzb")}},
+
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 2,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 0,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Start,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azazaza"),
+							},
+						},
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 1,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Continue,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("bzbzbzb"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{},
 		},
@@ -200,8 +352,10 @@ func (s *applicationSuite) TestHandle() {
 				S: &store.StoreStruct{
 					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 4}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 4, Started: false, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 
 			d: &repo.AppPieceUnit{
@@ -226,11 +380,36 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 0}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Start, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 0,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Start,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azazaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{},
 		},
@@ -255,8 +434,10 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 
 			d: &repo.AppPieceUnit{
@@ -292,11 +473,36 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 2}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Open, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 2,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Open,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azazaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{},
 		},
@@ -319,8 +525,10 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 3, Started: false, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 
 			d: &repo.AppPieceUnit{
@@ -352,11 +560,36 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 2, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 0}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Start, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 0,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Start,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azazaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{
 				errors.New("in store.RegisterBuffer buffer has no elements"),
@@ -384,8 +617,10 @@ func (s *applicationSuite) TestHandle() {
 					},
 
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 3, Started: false, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 2, TS: "qqq", B: repo.True, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazazaza")},
@@ -414,10 +649,11 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 3, Started: false, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
-			wantADU: []repo.AppDistributorUnit{},
 			wantErr: []error{
 				errors.New("in repo.NewStoreChange for given TS \"qqq\", Part \"2\" is unexpected"),
 			},
@@ -444,8 +680,10 @@ func (s *applicationSuite) TestHandle() {
 					},
 
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 3, Started: false, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: repo.True, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("azazaza")},
@@ -469,16 +707,39 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 2, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 1,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Continue,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azazaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{},
 		},
-
 		{
 			name: "B() == repo.True, E() == repo.Probably, ASKD && OB => part increments",
 			a: &App{
@@ -509,8 +770,10 @@ func (s *applicationSuite) TestHandle() {
 					},
 
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 2, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: repo.True, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("azazaza")},
@@ -541,18 +804,41 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 1, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 1,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Continue,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azazaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{
 				errors.New("in store.RegisterBuffer buffer has no elements"),
 			},
 		},
-
 		{
 			name: "B() == repo.True, E() == repo.True, no header => old false branch continued",
 			a: &App{
@@ -581,8 +867,10 @@ func (s *applicationSuite) TestHandle() {
 					},
 
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 2, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 2, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azazazazazazazazazazazazazazazazazaza")},
@@ -607,18 +895,42 @@ func (s *applicationSuite) TestHandle() {
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 1}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 1, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 2}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("\r\nazazazazazazazazazazazazazazazazazaza")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 2,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Continue,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("\r\nazazazazazazazazazazazazazazazazazaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{
 				errors.New("in repo.GetHeaderLines no header found"),
 				errors.New("in store.RegisterBuffer buffer has no elements"),
 			},
 		},
-
 		{
 			name: "B() == repo.True, E() == repo.True, no header => new false branch started",
 			a: &App{
@@ -647,9 +959,12 @@ func (s *applicationSuite) TestHandle() {
 					},
 
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 2, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
+
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 2, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("bPrefixbRoot\r\nContent-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain\r\n\r\nbzbzbzbzb")},
 			},
@@ -673,27 +988,52 @@ func (s *applicationSuite) TestHandle() {
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 1}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 1, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 2}, F: repo.FiFo{FormName: "bob", FileName: "long.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzbzbzb")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 2,
+									},
+									F: repo.FiFo{
+										FormName: "bob",
+										FileName: "long.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Continue,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("bzbzbzbzb"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{
 				errors.New("in store.RegisterBuffer buffer has no elements"),
 			},
 		},
-
 		{
 			name: "AppSub, no ASKG  => Adding ASKG and ASKD.T(), decrementing counter Max and Cur",
 			a: &App{
 				S: &store.StoreStruct{
 					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 4}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 4, Started: false, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
-
 			d: &repo.AppSub{
 				ASH: repo.AppSubHeader{TS: "qqq", Part: 0}, ASB: repo.AppSubBody{B: []byte("\r\n")},
 			},
@@ -714,13 +1054,13 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 3, Started: false, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
-			wantADU: []repo.AppDistributorUnit{},
 			wantErr: []error{},
 		},
-
 		{
 			name: "AppSub, ASKG, no OB => Adding ASKD.T(), decrementing counter Max and Cur",
 			a: &App{
@@ -741,8 +1081,10 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 4}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 4, Started: false, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 
 			d: &repo.AppSub{
@@ -776,13 +1118,13 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 3, Started: false, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
-			wantADU: []repo.AppDistributorUnit{},
 			wantErr: []error{},
 		},
-
 		{
 			name: "AppSub, OB => Combining opposite branches, decrementing counter Max and Cur",
 			a: &App{
@@ -803,10 +1145,11 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 4}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 4, Started: false, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
-
 			d: &repo.AppSub{
 				ASH: repo.AppSubHeader{TS: "qqq", Part: 1}, ASB: repo.AppSubBody{B: []byte("\r\n")},
 			},
@@ -836,10 +1179,11 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 3, Started: false, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
-			wantADU: []repo.AppDistributorUnit{},
 			wantErr: []error{
 				errors.New("in store.RegisterBuffer buffer has no elements"),
 			},
@@ -865,8 +1209,10 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 
 			d: &repo.AppPieceUnit{
@@ -891,11 +1237,36 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 1,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Continue,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azazaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{
 				errors.New("in store.RegisterBuffer buffer has no elements"),
@@ -911,10 +1282,11 @@ func (s *applicationSuite) TestHandle() {
 						{TS: "qqq"}: {
 							&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("bzbzbzb")}}},
 					},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: false}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
-
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 0, TS: "qqq", B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\r\nContent-Type: text/plain\r\n\r\nazazaza")},
 			},
@@ -924,10 +1296,56 @@ func (s *applicationSuite) TestHandle() {
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 					C: map[repo.AppStoreKeyGeneral]repo.Counter{},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 0}, F: repo.FiFo{FormName: "bob", FileName: "long.txt"}, M: repo.Message{PreAction: repo.Open, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "bob", FileName: "long.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("bzbzbzb")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 2,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 0,
+									},
+									F: repo.FiFo{
+										FormName: "bob",
+										FileName: "long.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Open,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azazaza"),
+							},
+						},
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 1,
+									},
+									F: repo.FiFo{
+										FormName: "bob",
+										FileName: "long.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Continue,
+										PostAction: repo.Finish,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("bzbzbzb"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{
 				errors.New("in store.Register dataPiece group with TS \"qqq\" and Part \"0\" is finished"),
@@ -952,8 +1370,10 @@ func (s *applicationSuite) TestHandle() {
 								}}}},
 
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("azaza")},
@@ -973,17 +1393,39 @@ func (s *applicationSuite) TestHandle() {
 									E: repo.False,
 								}}}},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
+				},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 1,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Continue,
+										PostAction: repo.Close,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azaza"),
+							},
+						},
+					},
 				},
 			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Close}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-			},
-			wantErr: []error{
-				//	errors.New("in store.RegisterBuffer buffer has no elements"),
-			},
+			wantErr: []error{},
 		},
-
 		{
 			name: "B() == repo.False & E() == repo.True, buffer contains dataPiece with E() == repo.Probably => releasing from buffer",
 			a: &App{
@@ -994,8 +1436,10 @@ func (s *applicationSuite) TestHandle() {
 							&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: repo.True, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("azaza")}},
 						},
 					},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 0, TS: "qqq", B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nbzbzbz")},
@@ -1017,12 +1461,58 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 0}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Open, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzbz")}},
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 2,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 0,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Open,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("bzbzbz"),
+							},
+						},
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 1,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Continue,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{
 				errors.New("in store.Register got double-meaning dataPiece"),
@@ -1039,8 +1529,10 @@ func (s *applicationSuite) TestHandle() {
 							&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: repo.True, E: repo.Probably}, APB: repo.AppPieceBody{B: []byte("azaza")}},
 						},
 					},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 0, TS: "qqq", B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nbzbzbz")},
@@ -1062,12 +1554,58 @@ func (s *applicationSuite) TestHandle() {
 						},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 0}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Open, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzbz")}},
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 2,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 0,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Open,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("bzbzbz"),
+							},
+						},
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 1,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Continue,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{
 				errors.New("in store.Register got double-meaning dataPiece"),
@@ -1097,8 +1635,10 @@ func (s *applicationSuite) TestHandle() {
 							&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 2, TS: "qqq", B: repo.True, E: repo.False}, APB: repo.AppPieceBody{B: []byte("------\r\nazaza")}},
 						},
 					},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: false}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppSub{
 				ASH: repo.AppSubHeader{TS: "qqq", Part: 1}, ASB: repo.AppSubBody{B: []byte("\r\n----")},
@@ -1110,9 +1650,35 @@ func (s *applicationSuite) TestHandle() {
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 					C: map[repo.AppStoreKeyGeneral]repo.Counter{},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 2}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("\r\n----------\r\nazaza")}},
+
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 2,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Continue,
+										PostAction: repo.Finish,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("\r\n----------\r\nazaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{},
 		},
@@ -1137,7 +1703,6 @@ func (s *applicationSuite) TestHandle() {
 					},
 				},
 			},
-			wantADU: []repo.AppDistributorUnit{},
 			wantErr: []error{
 				errors.New("in repo.NewStoreChange TS \"qqq\" is unknown"),
 			},
@@ -1172,7 +1737,6 @@ func (s *applicationSuite) TestHandle() {
 					},
 				},
 			},
-			wantADU: []repo.AppDistributorUnit{},
 			wantErr: []error{
 				errors.New("in repo.NewStoreChange for given TS \"qqq\", Part \"3\" is unexpected"),
 			},
@@ -1217,7 +1781,6 @@ func (s *applicationSuite) TestHandle() {
 					},
 				},
 			},
-			wantADU: []repo.AppDistributorUnit{},
 			wantErr: []error{
 				errors.New("in repo.NewStoreChange for given TS \"www\", Part \"5\" is unexpected"),
 			},
@@ -1246,7 +1809,7 @@ func (s *applicationSuite) TestHandle() {
 									B: repo.BeginningData{Part: 4},
 								}}}},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
 			},
 			d: &repo.AppPieceUnit{
@@ -1276,10 +1839,9 @@ func (s *applicationSuite) TestHandle() {
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{
 						{TS: "qqq"}: {&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 6, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}}},
 					},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
 			},
-			wantADU: []repo.AppDistributorUnit{},
 			wantErr: []error{
 				errors.New("in repo.NewStoreChange for given TS \"qqq\", Part \"6\" is unexpected"),
 			},
@@ -1291,8 +1853,10 @@ func (s *applicationSuite) TestHandle() {
 				S: &store.StoreStruct{
 					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazazaza")},
@@ -1313,11 +1877,36 @@ func (s *applicationSuite) TestHandle() {
 									E: repo.True,
 								}}}},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, U: repo.UnaryData{}, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Open, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 3,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Open,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azazaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{errors.New("in store.RegisterBuffer buffer has no elements")},
 		},
@@ -1328,7 +1917,7 @@ func (s *applicationSuite) TestHandle() {
 				S: &store.StoreStruct{
 					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
 			},
 			d: &repo.AppPieceUnit{
@@ -1348,10 +1937,9 @@ func (s *applicationSuite) TestHandle() {
 									E: repo.True,
 								}}}},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1, Started: true, Blocked: true}},
 				},
 			},
-			wantADU: []repo.AppDistributorUnit{},
 			wantErr: []error{
 				errors.New("in repo.GetHeaderLines header \"Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type\" is not full"),
 				errors.New("in store.RegisterBuffer buffer has no elements"),
@@ -1364,7 +1952,7 @@ func (s *applicationSuite) TestHandle() {
 				S: &store.StoreStruct{
 					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
 			},
 			d: &repo.AppPieceUnit{
@@ -1384,10 +1972,9 @@ func (s *applicationSuite) TestHandle() {
 									E: repo.True,
 								}}}},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1, Started: true, Blocked: true}},
 				},
 			},
-			wantADU: []repo.AppDistributorUnit{},
 			wantErr: []error{
 				errors.New("in repo.GetHeaderLines header \"Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\" is not full"),
 				errors.New("in store.RegisterBuffer buffer has no elements"),
@@ -1409,7 +1996,7 @@ func (s *applicationSuite) TestHandle() {
 									E: repo.True,
 								}}}},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
 			},
 			d: &repo.AppPieceUnit{
@@ -1438,10 +2025,9 @@ func (s *applicationSuite) TestHandle() {
 									E: repo.True,
 								}}}},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1, Started: true, Blocked: true}},
 				},
 			},
-			wantADU: []repo.AppDistributorUnit{},
 			wantErr: []error{
 				errors.New("in repo.GetHeaderLines header \"Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\" is not full"),
 				errors.New("in store.RegisterBuffer buffer has no elements"),
@@ -1463,8 +2049,10 @@ func (s *applicationSuite) TestHandle() {
 									E: repo.True,
 								}}}},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("\nContent-Type: text/plain\r\n\r\nazazaza")},
@@ -1485,11 +2073,36 @@ func (s *applicationSuite) TestHandle() {
 									E: repo.True,
 								}}}},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 4,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Continue,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azazaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{
 				errors.New("in store.RegisterBuffer buffer has no elements"),
@@ -1518,7 +2131,7 @@ func (s *applicationSuite) TestHandle() {
 							&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 9, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("czczc")}},
 							&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 7, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("bzbzb")}},
 						}},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3, Started: true, Blocked: true}},
 				},
 			},
 			d:   &repo.AppSub{ASH: repo.AppSubHeader{Part: 5, TS: "qqq"}, ASB: repo.AppSubBody{B: []byte("\r\n-----")}},
@@ -1553,10 +2166,9 @@ func (s *applicationSuite) TestHandle() {
 							&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 7, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("bzbzb")}},
 						},
 					},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 2, Started: true, Blocked: true}},
 				},
 			},
-			wantADU: []repo.AppDistributorUnit{},
 			wantErr: []error{},
 		},
 
@@ -1581,8 +2193,10 @@ func (s *applicationSuite) TestHandle() {
 							&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("--12345--\r\n")}},
 						},
 					},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d:   &repo.AppSub{ASH: repo.AppSubHeader{Part: 0, TS: "qqq"}, ASB: repo.AppSubBody{B: []byte("\r\n-----")}},
 			bou: repo.Boundary{Prefix: []byte("--"), Root: []byte("-----12345")},
@@ -1590,11 +2204,33 @@ func (s *applicationSuite) TestHandle() {
 				S: &store.StoreStruct{
 					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 1}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 1, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, U: repo.UnaryData{}, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Finish}}}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 1,
+									},
+									F: repo.FiFo{
+										FormName: "",
+										FileName: "",
+									},
+									M: repo.Message{
+										PreAction:  repo.Continue,
+										PostAction: repo.Finish,
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{
 				errors.New("in store.Register dataPiece group with TS \"qqq\" is finished"),
@@ -1605,19 +2241,41 @@ func (s *applicationSuite) TestHandle() {
 			name: "B() == repo.False & E() == repo.False, formName only => prepare ADU",
 			a: &App{
 				S: &store.StoreStruct{
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: repo.False, E: repo.False}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"\r\n\r\nazazaza")},
 			},
 			wantA: &App{
 				S: &store.StoreStruct{
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{UK: repo.UnaryKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice"}}, S: repo.StreamData{}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.Unary,
+								U: repo.UnaryData{
+									UK: repo.UnaryKey{
+										TS:   "qqq",
+										Part: 4,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azazaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{},
 		},
@@ -1626,19 +2284,42 @@ func (s *applicationSuite) TestHandle() {
 			name: "B() == repo.False & E() == repo.False, formName and fileName => prepare ADU",
 			a: &App{
 				S: &store.StoreStruct{
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: repo.False, E: repo.False}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazazaza")},
 			},
 			wantA: &App{
 				S: &store.StoreStruct{
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.Unary, U: repo.UnaryData{UK: repo.UnaryKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}}, S: repo.StreamData{}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.Unary,
+								U: repo.UnaryData{
+									UK: repo.UnaryKey{
+										TS:   "qqq",
+										Part: 4,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azazaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{},
 		},
@@ -1682,8 +2363,10 @@ func (s *applicationSuite) TestHandle() {
 									B: repo.BeginningData{Part: 4},
 								}}}},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 4, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")},
@@ -1726,11 +2409,36 @@ func (s *applicationSuite) TestHandle() {
 								}}},
 					},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
-					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1}},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1, Started: true, Blocked: true}},
 				},
-			},
-			wantADU: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 4,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Continue,
+										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azaza"),
+							},
+						},
+					},
+				},
 			},
 			wantErr: []error{
 				errors.New("in store.RegisterBuffer buffer has no elements"),
@@ -1739,13 +2447,12 @@ func (s *applicationSuite) TestHandle() {
 	}
 	for _, v := range tt {
 		s.Run(v.name, func() {
-			got, err := v.a.Handle(v.d, v.bou, 0)
-			if err != nil {
-				s.Equal(v.wantErr, err)
-			}
+			v.wg.Add(1)
+			go v.a.Handle(v.d, v.bou, &v.wg, 0)
+			//logger.L.Infoln("in application.TestHandle waiting...")
+			v.wg.Wait()
 
 			s.Equal(v.wantA, v.a)
-			s.Equal(v.wantADU, got)
 		})
 	}
 }
@@ -2040,4 +2747,18 @@ func (s *applicationSuite) TestCalcHeader() {
 
 		})
 	}
+}
+
+type DistributorSpyLogger struct {
+	calls  int
+	params []repo.AppUnit
+}
+
+func (d *DistributorSpyLogger) LogStuff(au repo.AppUnit) {
+	d.calls++
+	d.params = append(d.params, au)
+}
+
+func NewDistributorSpyLogger() *DistributorSpyLogger {
+	return &DistributorSpyLogger{}
 }

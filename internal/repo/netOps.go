@@ -5,7 +5,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"postParser/internal/logger"
 	"time"
 )
 
@@ -20,7 +19,7 @@ func AnalyzeHeader(conn net.Conn) (Boundary, []byte, error) {
 	if n0 < len(header) {
 		header = header[:n0]
 	}
-	logger.L.Infof("in repo.AnalyzeHeader header: %q\n", header)
+	//logger.L.Infof("in repo.AnalyzeHeader header: %q\n", header)
 	bou := FindBoundary(header)
 	return bou, header, err
 }

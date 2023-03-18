@@ -1432,3 +1432,630 @@ func (s *modelsSuite) TestIsPartChanged() {
 		})
 	}
 }
+
+func (s *modelsSuite) TestIsOk() {
+	tt := []struct {
+		name   string
+		want   []GRequest
+		got    []GRequest
+		wantOK bool
+	}{
+
+		{
+			name: "len(y) == 0",
+			want: []GRequest{{
+				FieldName: "alice",
+				ByteChunk: []byte("azaza"),
+				RType:     U,
+			}},
+			got:    []GRequest{},
+			wantOK: false,
+		},
+
+		{
+			name: "len(x) != len(y)",
+			want: []GRequest{
+				{
+					FieldName: "alice",
+					ByteChunk: []byte("azaza"),
+					RType:     U,
+				},
+				{
+					FieldName: "bob",
+					ByteChunk: []byte("bzbzbzbzb"),
+					RType:     U,
+				},
+			},
+			got: []GRequest{
+				{
+					FieldName: "alice",
+					ByteChunk: []byte("azaza"),
+					RType:     U,
+				},
+			},
+			wantOK: false,
+		},
+
+		{
+			name: "unary all equal",
+			want: []GRequest{
+				{
+					FieldName: "alice",
+					ByteChunk: []byte("azaza"),
+					RType:     U,
+				},
+				{
+					FieldName: "bob",
+					ByteChunk: []byte("bzbzbzbzb"),
+					RType:     U,
+				},
+			},
+			got: []GRequest{
+				{
+					FieldName: "alice",
+					ByteChunk: []byte("azaza"),
+					IsFirst:   true,
+					RType:     U,
+				},
+
+				{
+					FieldName: "bob",
+					ByteChunk: []byte("bzbzbzbzb"),
+					IsLast:    true,
+					RType:     U,
+				},
+			},
+			wantOK: true,
+		},
+
+		{
+			name: "unary not equal_1",
+			want: []GRequest{
+				{
+					FieldName: "alice",
+					ByteChunk: []byte("azaza"),
+					RType:     U,
+				},
+				{
+					FieldName: "bob",
+					ByteChunk: []byte("bzbzbzb"),
+					RType:     U,
+				},
+			},
+			got: []GRequest{
+				{
+					FieldName: "alice",
+					ByteChunk: []byte("azaza"),
+					IsFirst:   true,
+					RType:     U,
+				},
+
+				{
+					FieldName: "bob",
+					ByteChunk: []byte("bzbzbzbzb"),
+					IsLast:    true,
+					RType:     U,
+				},
+			},
+			wantOK: false,
+		},
+
+		{
+			name: "unary not equal_2",
+			want: []GRequest{
+				{
+					FieldName: "alice",
+					ByteChunk: []byte("azaza"),
+					RType:     U,
+				},
+				{
+					FieldName: "bob",
+					ByteChunk: []byte("bzbzbzb"),
+					RType:     U,
+				},
+			},
+			got: []GRequest{
+				{
+					FieldName: "alice",
+					ByteChunk: []byte("azaza"),
+					IsFirst:   true,
+					RType:     U,
+				},
+
+				{
+					FieldName: "claire",
+					ByteChunk: []byte("bzbzbzb"),
+					IsLast:    true,
+					RType:     U,
+				},
+			},
+			wantOK: false,
+		},
+
+		{
+			name: "stream all equal, ordered",
+			want: []GRequest{
+				{
+					FileInfo:  true,
+					FieldName: "alice",
+					FileName:  "short.txt",
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("azazazaza"),
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("bzbzbzbzbz"),
+					RType:     S,
+				},
+			},
+			got: []GRequest{
+				{
+					FileInfo:  true,
+					FieldName: "alice",
+					FileName:  "short.txt",
+					IsFirst:   true,
+					RType:     S,
+				},
+
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("azazazaza"),
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("bzbzbzbzbz"),
+					IsLast:    true,
+					RType:     S,
+				},
+			},
+			wantOK: true,
+		},
+		{
+			name: "stream all equal, unordered in the valid way 1",
+			want: []GRequest{
+				{
+					FileInfo:  true,
+					FieldName: "alice",
+					FileName:  "short.txt",
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("azazazaza"),
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("bzbzbzbzbz"),
+					RType:     S,
+				},
+				{
+					FileInfo:  true,
+					FieldName: "bob",
+					FileName:  "long.txt",
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("11111111111"),
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("222222222222"),
+					RType:     S,
+				},
+			},
+			got: []GRequest{
+				{
+					FileInfo:  true,
+					FieldName: "alice",
+					FileName:  "short.txt",
+					IsFirst:   true,
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("azazazaza"),
+					RType:     S,
+				},
+				{
+					FileInfo:  true,
+					FieldName: "bob",
+					FileName:  "long.txt",
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("11111111111"),
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("bzbzbzbzbz"),
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("222222222222"),
+					RType:     S,
+					IsLast:    true,
+				},
+			},
+			wantOK: true,
+		},
+		{
+			name: "stream all equal, unordered in the valid way 2",
+			want: []GRequest{
+				{
+					FileInfo:  true,
+					FieldName: "alice",
+					FileName:  "short.txt",
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("azazazaza"),
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("bzbzbzbzbz"),
+					RType:     S,
+				},
+				{
+					FileInfo:  true,
+					FieldName: "bob",
+					FileName:  "long.txt",
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("11111111111"),
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("222222222222"),
+					RType:     S,
+				},
+			},
+			got: []GRequest{
+				{
+					FileInfo:  true,
+					FieldName: "alice",
+					FileName:  "short.txt",
+					IsFirst:   true,
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("azazazaza"),
+					RType:     S,
+				},
+				{
+					FileInfo:  true,
+					FieldName: "bob",
+					FileName:  "long.txt",
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("11111111111"),
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("222222222222"),
+					RType:     S,
+				},
+
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("bzbzbzbzbz"),
+					IsLast:    true,
+					RType:     S,
+				},
+			},
+			wantOK: true,
+		},
+		{
+			name: "stream all equal, unordered in the unvalid way",
+			want: []GRequest{
+				{
+					FileInfo:  true,
+					FieldName: "alice",
+					FileName:  "short.txt",
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("azazazaza"),
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("bzbzbzbzbz"),
+					RType:     S,
+				},
+				{
+					FileInfo:  true,
+					FieldName: "bob",
+					FileName:  "long.txt",
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("11111111111"),
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("222222222222"),
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("333333333333"),
+					RType:     S,
+				},
+			},
+			got: []GRequest{
+				{
+					FileInfo:  true,
+					FieldName: "alice",
+					FileName:  "short.txt",
+					IsFirst:   true,
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("bzbzbzbzbz"),
+					IsLast:    true,
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("azazazaza"),
+					RType:     S,
+				},
+				{
+					FileInfo:  true,
+					FieldName: "bob",
+					FileName:  "long.txt",
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("11111111111"),
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("222222222222"),
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("333333333333"),
+					RType:     S,
+					IsLast:    true,
+				},
+			},
+			wantOK: false,
+		},
+
+		{
+			name: "unaries and unorderd streams",
+			want: []GRequest{
+				{
+					FieldName: "claire",
+					ByteChunk: []byte("czczcz"),
+					RType:     U,
+				},
+				{
+					FileInfo:  true,
+					FieldName: "alice",
+					FileName:  "short.txt",
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("azazazaza"),
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("bzbzbzbzbz"),
+					RType:     S,
+				},
+				{
+					FieldName: "david",
+					ByteChunk: []byte("dzdzdz"),
+					RType:     U,
+				},
+				{
+					FileInfo:  true,
+					FieldName: "bob",
+					FileName:  "long.txt",
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("11111111111"),
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("222222222222"),
+					RType:     S,
+				},
+			},
+			got: []GRequest{
+				{
+					FieldName: "claire",
+					ByteChunk: []byte("czczcz"),
+					RType:     U,
+					IsFirst:   true,
+				},
+				{
+					FileInfo:  true,
+					FieldName: "alice",
+					FileName:  "short.txt",
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("azazazaza"),
+					RType:     S,
+				},
+				{
+					FileInfo:  true,
+					FieldName: "bob",
+					FileName:  "long.txt",
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("11111111111"),
+					RType:     S,
+				},
+				{
+					FieldName: "david",
+					ByteChunk: []byte("dzdzdz"),
+					RType:     U,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("bzbzbzbzbz"),
+					IsLast:    true,
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "bob",
+					ByteChunk: []byte("222222222222"),
+					RType:     S,
+					IsLast:    true,
+				},
+			},
+			wantOK: true,
+		},
+		{
+			name: "unary + stream + unary",
+			want: []GRequest{
+				{
+					FileInfo:  true,
+					FieldName: "alice",
+					FileName:  "short.txt",
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("1111111111"),
+					RType:     S,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("2222222222"),
+					RType:     S,
+				},
+				{
+					FieldName: "bob",
+					ByteChunk: []byte("bzbzb"),
+					RType:     U,
+				},
+				{
+					FieldName: "claire",
+					ByteChunk: []byte("czczc"),
+					RType:     U,
+				},
+			},
+			got: []GRequest{
+				{
+					FieldName: "bob",
+					ByteChunk: []byte("bzbzb"),
+					RType:     U,
+					IsFirst:   true,
+				},
+				{
+					FileInfo:  true,
+					FieldName: "alice",
+					FileName:  "short.txt",
+					RType:     S,
+				},
+
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("1111111111"),
+					RType:     S,
+				},
+				{
+					FieldName: "claire",
+					ByteChunk: []byte("czczc"),
+					RType:     U,
+				},
+				{
+					FileData:  true,
+					FieldName: "alice",
+					ByteChunk: []byte("2222222222"),
+					IsLast:    true,
+					RType:     S,
+				},
+			},
+			wantOK: true,
+		},
+	}
+	for _, v := range tt {
+		s.Run(v.name, func() {
+
+			s.Equal(v.wantOK, IsOk(v.name, v.want, v.got))
+
+		})
+	}
+}

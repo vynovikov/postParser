@@ -1,16 +1,19 @@
-package grpc
+package rpc
 
 import (
 	"context"
 	"fmt"
-	pb "postParser/internal/adapters/driven/grpc/pb"
-	"postParser/internal/logger"
-	"postParser/internal/repo"
+	"net"
 	"sort"
+	"sync"
+	"workspaces/postParser/internal/adapters/driven/rpc/pb"
+	"workspaces/postParser/internal/logger"
+	"workspaces/postParser/internal/repo"
 
 	errs "github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/test/bufconn"
 )
 
 var (
@@ -20,7 +23,7 @@ var (
 )
 
 type Transmitter interface {
-	Transmit([]repo.AppDistributorUnit)
+	Transmit(repo.AppDistributorUnit, *sync.Mutex)
 }
 
 type TransmitAdapter struct {
@@ -29,14 +32,33 @@ type TransmitAdapter struct {
 	LastSK repo.StreamKey
 	CurSK  repo.StreamKey
 	CurReq *pb.FileUploadReq
+	lock   sync.Mutex
 }
 
-func NewTransmitter() Transmitter {
-	connectString := "localhost:3100"
-	conn, err := grpc.Dial(connectString, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		logger.L.Error(errs.Wrap(err, "rpc.Transmit.grpc.dial"))
+func NewTransmitter(lis *bufconn.Listener) *TransmitAdapter {
+	//connectString := "localhost:3100"
+	var (
+		connectString string
+		conn          *grpc.ClientConn
+		err           error
+	)
+	if lis != nil {
+		conn, err = grpc.Dial("",
+			grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+				return lis.Dial()
+			}),
+			grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			logger.L.Error(errs.Wrap(err, "rpc.Transmit.grpc.dial"))
+		}
+	} else {
+		connectString = "localhost" + ":" + "3100"
+		conn, err = grpc.Dial(connectString, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			logger.L.Error(errs.Wrap(err, "rpc.Transmit.grpc.dial"))
+		}
 	}
+
 	client := pb.NewPostParserClient(conn)
 
 	return &TransmitAdapter{
@@ -44,52 +66,74 @@ func NewTransmitter() Transmitter {
 		M: make(map[repo.StreamKey]pb.PostParser_MultiPartClient),
 	}
 }
-func (t *TransmitAdapter) Transmit(adu []repo.AppDistributorUnit) {
+
+func (t *TransmitAdapter) Transmit(adu repo.AppDistributorUnit, mu *sync.Mutex) {
 	//connectString := os.Getenv("HOST") + ":" + os.Getenv("PORT")
 
-	for _, v := range adu {
-		switch v.H.T {
-		case repo.Unary:
-			errs := t.transmitUnary(t.c, v)
-
+	switch adu.H.T {
+	case repo.Unary:
+		t.transmitUnary(t.c, adu, mu)
+		/*
 			for _, rng := range errs {
 				logger.L.Errorf("in grpc.Transmit err: %v\n", rng)
 			}
+		*/
+	case repo.ClientStream:
 
-		case repo.ClientStream:
-
-			errs := t.transmitStream(t.c, v)
+		//logger.L.Warnf("in grpc.Transmit trying to send adu header %v, body %q\n", v.H, v.B.B)
+		t.transmitStream(t.c, adu, mu)
+		/*
 			for _, rng := range errs {
 				logger.L.Errorf("in grpc.Transmit err: %v\n", rng)
 			}
+		*/
+		//logger.L.Errorf("in grpc.Transmit adu header %v, body %q was sent\n", adu.H, adu.B.B)
+		//time.Sleep(time.Millisecond * 10)
 
-		}
 	}
+
 }
 
 // update proto msg to use last flag
-func (t *TransmitAdapter) transmitUnary(c pb.PostParserClient, aduOne repo.AppDistributorUnit) []error {
+func (t *TransmitAdapter) transmitUnary(c pb.PostParserClient, aduOne repo.AppDistributorUnit, mu *sync.Mutex) []error {
+	//logger.L.Infof("grpc.transmitUnary invoked for aduOne header %v, body %q \n", aduOne.H, aduOne.GetBody())
 	errs, streamKyes := make([]error, 0), make([]repo.StreamKey, 0)
+	if aduOne.H.U.M.PreAction == repo.Start {
+		defer mu.Unlock()
+	}
 	req := t.NewReqUnary(aduOne)
 
-	//logger.L.Infof("in grpc.transmitUnary for aduOne header %v, body %q, made req: %v\n", aduOne.H, aduOne.B.B, req)
+	//logger.L.Infof("in grpc.transmitUnary aduOne header %v, body %q made req %v\n", aduOne.H, aduOne.GetBody(), req)
 
 	if aduOne.H.U.M.PostAction == repo.Finish {
+
 		streamKyes, errs = t.Register(aduOne.H)
+		//logger.L.Infof("in grpc.transmitUnary aduOne header %v, body %q during t.M %v got streamKeys: %v, errs %v\n", aduOne.H, aduOne.GetBody(), t.M, streamKyes, errs)
 
 		for _, v := range streamKyes {
 
-			_, err := t.M[v].CloseAndRecv()
+			if aduOne.H.U.M.PreAction == repo.StopLast {
 
-			if err != nil {
-				errs = append(errs, err)
+				//logger.L.Infof("in grpc.transmitUnary aduOne header %v, body %q trying to close stream by %v\n", aduOne.H, aduOne.GetBody(), v)
+				_, err := t.M[v].CloseAndRecv()
+				//logger.L.Infoln("in grpc.transmitUnary success")
+				if err != nil {
+					errs = append(errs, err)
+				}
 			}
 
 			delete(t.M, v)
 
 		}
+		//logger.L.Infof("in grpc.transmitUnary aduOne header %v, body %q left t.M: %v\n", aduOne.H, aduOne.GetBody(), t.M)
+	}
+	//logger.L.Infof("in grpc.transmitUnary aduOne header %v, body %q unlocking\n", aduOne.H, aduOne.GetBody())
+	if aduOne.H.U.M.PreAction != repo.Start {
+		//logger.L.Errorf("in grpc.transmitUnary aduOne with header: %v, unlocks mutex\n", aduOne.H)
+		mu.Unlock()
 	}
 
+	//logger.L.Infof("in grpc.transmitUnary aduOne header %v, body %q sending\n", aduOne.H, aduOne.GetBody())
 	_, err := c.SinglePart(context.Background(), req)
 
 	if err != nil {
@@ -97,43 +141,32 @@ func (t *TransmitAdapter) transmitUnary(c pb.PostParserClient, aduOne repo.AppDi
 	}
 	//logger.L.Infof("in grpc.transmitUnary got res: %v\n", res)
 
+	//logger.L.Warnf("in grpc.transmitUnary for aduOne header %v after handling t.M: %v\n", aduOne.H, t.M)
+
 	return errs
 }
 
 // handles stream ADUs, reads ans writes t.M
-func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppDistributorUnit) []error {
-	//logger.L.Warnf("grpc.transmitStream invoked with adu header %v, body %q, message %q, t.M: %v\n", aduOne.H, aduOne.B.B, aduOne.H.S.M, t.M)
+func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppDistributorUnit, mu *sync.Mutex) []error {
+	//logger.L.Infof("grpc.transmitStream invoked with adu header %v, message %q, t.M: %v\n", aduOne.H, aduOne.H.S.M, t.M)
 	var (
 		stream pb.PostParser_MultiPartClient
 		err    error
 	)
 	errs := make([]error, 0)
+
+	if aduOne.H.S.M.PreAction == repo.Start {
+		defer mu.Unlock()
+	}
 	req := t.NewReqStream(aduOne)
 	//techAduHeader := repo.AppDistributorHeader{T: repo.Tech, C: repo.CloseData{D: []repo.StreamKey{}}}
 
 	streamKeyes, errs := t.Register(aduOne.H)
-	/*
-		logger.L.Infof("in grpc.transmitStream for aduOne with header %v and body %q and t.M %v called Register which returned streamKeys (%d) and errors (%d):\n", aduOne.H, aduOne.B.B, t.M, len(streamKeyes), len(errs))
-		logger.L.Warnf("in grpc.transmitStream aduOne.H.S.M.PreAction = %d, aduOne.H.S.M.PostAction = %d\n", aduOne.H.S.M.PreAction, aduOne.H.S.M.PostAction)
+	//logger.L.Infof("in grpc.transmitStream for adu header %v, streamKeys are %v\n", aduOne.H, streamKeyes)
 
-		if len(streamKeyes) < 2 {
-			errs = append(errs, fmt.Errorf("in parser.grpc.transmitStream len(streamKeys) < 2: %v", streamKeyes))
-			return errs
-		}
-
-		for i, v := range streamKeyes {
-			logger.L.Infof("in grpc.transmitStream streamKey i = %d, v: %v\n", i, v)
-		}
-
-		for i, v := range errs {
-			logger.L.Infof("in grpc.transmitStream error i = %d, v: %v\n", i, v)
-			if v != nil {
-				errs = append(errs, v)
-			}
-		}
-	*/
 	switch pre := aduOne.H.S.M.PreAction; {
 	case pre == repo.Start || pre == repo.Open:
+
 		if pre == repo.Start {
 			stream, err = t.NewStream(aduOne.H.S.SK.TS, aduOne.H.S.F.FormName, aduOne.H.S.F.FileName, true)
 		} else {
@@ -145,16 +178,21 @@ func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppD
 		}
 		t.M[streamKeyes[0]] = stream
 
-		//logger.L.Infof("in grpc.transmitStream preAction Start req: %v\n", req)
+		if aduOne.H.S.M.PreAction != repo.Start {
+			mu.Unlock()
+		}
+
 		err = stream.Send(req)
+		//logger.L.Infof("in grpc.transmitStream for adu header %v preAction = repo.Start or repo.Open req: %v has been sent to SK %v, t.M became %v\n", aduOne.H, req, streamKeyes[0], t.M)
 
 		if err != nil {
 			errs = append(errs, err)
 		}
 
 	case pre == repo.Continue:
-		//logger.L.Infof("in grpc.transmitStream in preAction none t.M: %v\n", t.M)
+		//logger.L.Infof("in grpc.transmitStream in during handling adu header %v case preAction continue t.M: %v\n", aduOne.H, t.M)
 		stream, ok := t.M[streamKeyes[0]]
+		//logger.L.Infof("in grpc.transmitStream for adu header %v preAction = continue req: %v has been sent to SK %v, t.M became %v\n", aduOne.H, req, streamKeyes[0], t.M)
 		if !ok {
 			stream, err = t.NewStream(aduOne.H.S.SK.TS, aduOne.H.S.F.FormName, aduOne.H.S.F.FileName, false)
 			if err != nil {
@@ -162,11 +200,15 @@ func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppD
 			}
 			t.M[streamKeyes[0]] = stream
 		}
-		//logger.L.Infof("in grpc.transmitStream preAction none req: %v\n", req)
+
+		//logger.L.Infof("in grpc.transmitStream adu header %v preAction continue sending req: %v\n", aduOne.H, req)
+
 		err = stream.Send(req)
+		mu.Unlock()
 
 		if err != nil {
 			errs = append(errs, err)
+			//logger.L.Errorf("in grpc.transmitStream unable to send req: %v\n", err)
 		}
 
 	case pre == repo.StopLast:
@@ -178,6 +220,7 @@ func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppD
 					errs = append(errs, err)
 				}
 			}
+
 			_, err = stream.CloseAndRecv()
 			if err != nil {
 				errs = append(errs, err)
@@ -186,7 +229,8 @@ func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppD
 		}
 
 	}
-	//logger.L.Warnf("in grpc.transmitStream after PreAction t.M: %v\n", t.M)
+	//logger.L.Infof("in grpc.transmitStream after PreAction t.M: %v\n", t.M)
+	//logger.L.Infof("in grpc.transmitStream adu header %v has postaction repo.Continue? %t\n", aduOne.H, aduOne.H.S.M.PostAction == repo.Continue)
 
 	switch aduOne.H.S.M.PostAction {
 
@@ -204,7 +248,13 @@ func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppD
 				errs = append(errs, err)
 			}
 			//logger.L.Infof("in grpc.transmitStream PostAction none req: %v\n", req)
+
 			err = stream.Send(req)
+			//logger.L.Infoln("in grpc.transmitStream adu header %v checking for preaction \n", aduOne.H)
+			if aduOne.H.S.M.PreAction == repo.StopLast || aduOne.H.S.M.PreAction == repo.Continue {
+				//logger.L.Infof("in grpc.transmitStream adu header %v unlocks \n", aduOne.H)
+				mu.Unlock()
+			}
 
 			if err != nil {
 				errs = append(errs, err)
@@ -213,20 +263,23 @@ func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppD
 
 		t.M[streamKeyes[1]] = stream
 
-		//logger.L.Infof("in grpc.transmitStream after PostAction t.M: %v\n", t.M)
+		//logger.L.Infof("in grpc.transmitStream for adu header %v after PostAction == Continue t.M: %v\n", aduOne.H, t.M)
 
 	case repo.Close:
+		//logger.L.Infof("in grpc.transmitStream for adu header %v, streamKeys are %v\n", aduOne.H, streamKeyes)
 
 		if stream, ok := t.M[streamKeyes[0]]; ok {
 			_, err := stream.CloseAndRecv()
 			if err != nil {
 				errs = append(errs, err)
 			}
-			delete(t.M, streamKeyes[0])
+			t.Delete(streamKeyes[0])
+			//delete(t.M, streamKeyes[0])
 
 		}
 
 	case repo.Finish:
+		t.lock.Lock()
 		for i := range t.M {
 			if i.TS == aduOne.H.S.SK.TS {
 
@@ -238,12 +291,18 @@ func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppD
 				delete(t.M, i)
 			}
 		}
+		t.lock.Unlock()
 	}
 
-	//logger.L.Infof("in grpc.transmitStream after handling t.M: %v\n", t.M)
+	//logger.L.Infof("in grpc.transmitStream after handling adu header %v t.M: %v\n", aduOne.H, t.M)
 
 	return errs
 
+}
+func (t *TransmitAdapter) Delete(streamKey repo.StreamKey) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	delete(t.M, streamKey)
 }
 
 // Returns stream keys for handling ADUs based on ADU header, doesn't edit t.M
@@ -252,7 +311,7 @@ func (t *TransmitAdapter) Register(aduHeader repo.AppDistributorHeader) ([]repo.
 	//logger.L.Infof("rpc.Register invoked with aduHeader = %v, t.M = %v\n", aduHeader, t.M)
 
 	switch aduHeader.T {
-	case repo.Tech: // non-transmition handling
+	/*	case repo.Tech: // non-transmition handling
 		if len(aduHeader.C.D) > 0 { //
 			//logger.L.Infof("in rpc.Register before deleting t.M : %v\n", t.M)
 			for _, v := range aduHeader.C.D {
@@ -261,7 +320,7 @@ func (t *TransmitAdapter) Register(aduHeader repo.AppDistributorHeader) ([]repo.
 			}
 			//logger.L.Infof("in rpc.Register after deleting t.M : %v\n", t.M)
 		}
-
+	*/
 	case repo.Unary: // unary transmition
 		if aduHeader.U.M.PreAction == repo.StopLast { // unary transmition should close previous stream
 			//logger.L.Infof("in rpc.Register M =%v\n", t.M)
@@ -308,6 +367,8 @@ func (t *TransmitAdapter) Register(aduHeader repo.AppDistributorHeader) ([]repo.
 		SKPost.Part++
 		//difference between none and stopLast
 		if aduHeader.S.M.PreAction == repo.Start {
+			//logger.L.Infof("in grpc.Register start preaction %v added to streamsPre\n", SKCur)
+			//logger.L.Infof("in grpc.Register adu header %v have pre = start\n", aduHeader)
 			streamsPre = append(streamsPre, SK.ToTrue())
 		}
 
@@ -415,4 +476,44 @@ func (t *TransmitAdapter) NewReqStream(aduOne repo.AppDistributorUnit) *pb.FileU
 	req.Info = I
 
 	return req
+}
+
+func DecodeUnaryReq(r *pb.TextFieldReq) repo.GRequest {
+	res := repo.GRequest{}
+
+	res.FieldName = r.Name
+	res.FileName = r.Filename
+	res.ByteChunk = r.ByteChunk
+	res.IsFirst = r.IsFirst
+	res.IsLast = r.IsLast
+	res.RType = repo.U
+
+	return res
+}
+
+func DecodeStreamInfoReq(r *pb.FileUploadReq) repo.GRequest {
+	res := repo.GRequest{}
+
+	info := r.GetFileInfo()
+	res.FieldName = info.FieldName
+	res.FileInfo = true
+	res.FileName = info.FileName
+	res.IsFirst = info.IsFirst
+	res.RType = repo.S
+	//logger.L.Infof("in rpc.DecodeStreamInfoReq %v decoded into  %v\n", r, res)
+
+	return res
+}
+
+func DecodeStreamDataReq(r *pb.FileUploadReq, info *pb.FileInfo) repo.GRequest {
+	res := repo.GRequest{}
+
+	res.FileData = true
+	data := r.GetFileData()
+	res.FieldName = info.FieldName
+	res.ByteChunk = data.ByteChunk
+	res.IsLast = data.IsLast
+	res.RType = repo.S
+
+	return res
 }

@@ -1,11 +1,11 @@
-package grpc
+package rpc
 
 import (
 	"errors"
 	"fmt"
-	"postParser/internal/adapters/driven/grpc/pb"
-	"postParser/internal/repo"
 	"testing"
+	"workspaces/postParser/internal/adapters/driven/rpc/pb"
+	"workspaces/postParser/internal/repo"
 
 	"github.com/stretchr/testify/suite"
 )
