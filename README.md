@@ -56,6 +56,6 @@ After receiving interrupt signal, application first finishes its current work , 
 * HTTP and HTTP listeners are closed immediately.  Application cannot receive new requests from that moment
 * Waiting for receiver goroutines to finish their job, then close chanIn (channel used to deliver new data for application). If there is no job, receiver and chanIn are closed immediately
 * Waiting for application workers to stop, then close chanOut (channel used to deliver data to transmitting module)
-* Waiting for transmitter goroutines to stop the close whole app
+* Waiting for transmitter goroutines to stop then close whole app
 
 mixture of sync.RWMutex and sync.WaitGroup is used to perform these actions.
