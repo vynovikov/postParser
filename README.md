@@ -6,7 +6,7 @@ DataPiece is the major object in context of application work. It's a pointer to 
 
 #### Application
 
-Application uses methods Presence(), Dec(), Act(), RegisterBuffer(), BufferAdd(). These methods are executed by workers in concurrent way and need to be synchronized:
+Application uses several methods for dataPiece handling: Presence(), Dec(), Act(), RegisterBuffer(), BufferAdd(). Some of these methods are interacting with store maps. They are executed by workers in concurrent way and need to be synchronized:
 
 
 
@@ -16,7 +16,7 @@ sync.RWMutex is used for synchronization
 
 #### Store
 
-After application handling DataPieces are reassembled and sent via gRPC. Its important to keep initial order when sending dataPiece groups which represent file data chunks. Otherwise file would be corrupted. For that reason store is used. Store action is briefly shown below:
+DataPieces are reassembled and sent via gRPC after handling in application. Its important to keep initial order when sending dataPiece groups which represent file data chunks. Otherwise file would be corrupted. For that reason store is used. Store action is briefly shown below:
 
 ![](forManual/1.gif)
 
