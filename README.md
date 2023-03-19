@@ -1,6 +1,6 @@
 # DataPiece
 
-DataPiece is the major object in context of application work. It's a pointer to mixture of byte slice and header. Application handles dataPieces and sends them via gRPC.
+DataPiece is the major object in the context of work. It's a pointer to struct containing byte slice and header. PostParser extracts dataPieces from http (or https) request, handles and sends them via gRPC.
 
 ## Synchronization and ordering
 
@@ -49,13 +49,13 @@ Key and certificate are in "tls" folder.
 After receiving interrupt signal, application first finishes its current work , then terminates.
 ![](forManual/3.gif)
 
-​																													\* durations of any process are shown schematically
+​																													\* process durations are shown schematically
 
 #### Action sequence
 
-* HTTP and HTTP listeners are closed immediately.  Application cannot receive new requests from that moment
-* Waiting for receiver goroutines to finish their job, then close chanIn (channel used to deliver new data for application). If there is no job, receiver and chanIn are closed immediately
+* HTTP and HTTP listeners are closed immediately.  Application cannot receive new requests from that moment on
+* Waiting for receiver goroutines to finish their job, then close chanIn (channel used to deliver new data for application). If there are no jobs, chanIn are closed immediately
 * Waiting for application workers to stop, then close chanOut (channel used to deliver data to transmitting module)
 * Waiting for transmitter goroutines to stop then close whole app
 
-mixture of sync.RWMutex and sync.WaitGroup is used to perform these actions.
+sync.RWMutex and sync.WaitGroup are used to perform these actions.
