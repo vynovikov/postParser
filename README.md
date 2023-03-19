@@ -16,7 +16,7 @@ sync.RWMutex is used for synchronization
 
 #### Store
 
-DataPieces are reassembled and sent via gRPC after handling in application. Its important to keep initial order when sending dataPiece groups which represent file data chunks. Otherwise file would be corrupted. For that reason store is used. Store action is briefly shown below:
+DataPieces are reassembled before sending via gRPC. It is important to keep initial order when sending dataPiece group which represent file data chunks. Otherwise file would be corrupted. For that reason store is used:
 
 ![](forManual/1.gif)
 
