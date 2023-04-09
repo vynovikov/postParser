@@ -4,9 +4,9 @@ package rpc;
 
 option go_package = "./pb";
 
-import "internal/adapters/driven/grpc/proto/msg.proto";
+import "internal/adapters/driven/rpc/tosaver/proto/msg.proto";
 
-service PostParser {
+service Saver {
     rpc singlePart(TextFieldReq) returns (TextFieldRes) {};
     rpc multiPart(stream FileUploadReq) returns (FileUploadRes) {};
 }

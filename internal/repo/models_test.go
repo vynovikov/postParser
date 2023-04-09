@@ -146,7 +146,7 @@ func (s *modelsSuite) TestNewStoreChange() {
 		},
 
 		{
-			name: "B() == False, header full",
+			name: "B() == False, header full, d.Part() == 0",
 			p:    Presense{},
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 			d: &AppPieceUnit{
@@ -163,6 +163,32 @@ func (s *modelsSuite) TestNewStoreChange() {
 								FileName: "short.txt",
 							},
 							B: BeginningData{Part: 0},
+							E: True,
+						},
+					},
+				},
+			},
+			wantErr: nil,
+		},
+
+		{
+			name: "B() == False, header full, d.Part() != 0",
+			p:    Presense{},
+			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
+			d: &AppPieceUnit{
+				APH: AppPieceHeader{TS: "qqq", Part: 1, B: False, E: True}, APB: AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazaza")},
+			},
+			wantSC: StoreChange{
+				A: Change,
+				To: map[AppStoreKeyDetailed]map[bool]AppStoreValue{
+					{SK: StreamKey{TS: "qqq", Part: 2}, S: false}: {
+						false: {
+							D: Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: BeginningData{Part: 1},
 							E: True,
 						},
 					},

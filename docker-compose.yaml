@@ -1,20 +1,21 @@
 version: '3'
 services:
-  mainsrv:
-    build: 
-      context: .
-    environment:
-      - HOST=grpcsrv
-      - PORT=3100
+  postparser:
+    image: vynovikov/postparser:1.0
     ports:
-      - "3000:3000"
-    depends_on:
-      - grpcsrv
-      
-  grpcsrv:
-      build: 
-        context: ../grpcSrv
-      expose:
-        - "3100"
-
-
+      - 3000:3000
+    environment:
+      - SAVER_HOSTNAME=postsaver
+      - LOGGER_HOSTNAME=postlogger
+  postlogger:
+    image: vynovikov/postlogger:1.0
+    environment:
+      - HOSTNAME=postlogger
+    volumes:
+      - "./logs:/logs"
+  postsaver:
+    image: vynovikov/postsaver:1.0
+    environment:
+      - HOSTNAME=postsaver
+    volumes:
+      - "./results:/results"

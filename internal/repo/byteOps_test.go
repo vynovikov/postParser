@@ -2,8 +2,8 @@ package repo
 
 import (
 	"errors"
+	"postParser/internal/logger"
 	"testing"
-	"workspaces/postParser/internal/logger"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/suite"

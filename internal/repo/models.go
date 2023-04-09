@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"postParser/internal/adapters/driven/rpc/tosaver/pb"
 	"strings"
 	"sync"
 	"time"
-	"workspaces/postParser/internal/adapters/driven/rpc/pb"
 )
 
 type Unit struct {
@@ -24,7 +24,7 @@ type Meta struct {
 }
 
 type stream struct {
-	previous *pb.PostParser_MultiPartClient
+	previous *pb.Saver_MultiPartClient
 }
 
 type boundary struct {
@@ -329,9 +329,10 @@ func NewMessage(pre, post Action) Message {
 }
 
 type StreamData struct {
-	SK StreamKey // Stream identifier
-	F  FiFo      // Form and File name
-	M  Message   // Control message
+	SK StreamKey     // Stream identifier
+	F  FiFo          // Form and File name
+	M  Message       // Control message
+	B  BeginningData // Where stream begins
 }
 type CurrentPieceHeader struct {
 	TS   string
@@ -387,11 +388,12 @@ func NewCurrentPieceHeader(ts string, p int) CurrentPieceHeader {
 	}
 }
 
-func NewStreamData(sk StreamKey, f FiFo, sm Message) StreamData {
+func NewStreamData(sk StreamKey, f FiFo, sm Message, b BeginningData) StreamData {
 	return StreamData{
 		SK: sk,
 		F:  f,
 		M:  sm,
+		B:  b,
 	}
 }
 
@@ -411,7 +413,7 @@ func NewAppDistributorHeader(t comm, s StreamData, u UnaryData) AppDistributorHe
 	}
 }
 
-func NewAppDistributorHeaderStream(d DataPiece, f FiFo, m Message) AppDistributorHeader {
+func NewAppDistributorHeaderStream(d DataPiece, f FiFo, m Message, b BeginningData) AppDistributorHeader {
 	return AppDistributorHeader{
 		T: ClientStream,
 		S: StreamData{
@@ -421,6 +423,7 @@ func NewAppDistributorHeaderStream(d DataPiece, f FiFo, m Message) AppDistributo
 			},
 			F: f,
 			M: m,
+			B: b,
 		},
 	}
 }
@@ -460,9 +463,10 @@ func NewDistributorUnitStream(ask AppStoreValue, d DataPiece, m Message) AppDist
 	//logger.L.Infof("repo.NewDistributorUnitStream invoked by d.GetBody()  = %q\n", d.GetBody(0))
 	sk := NewStreamKey(d.TS(), d.Part(), false)
 	fifo := NewFiFo(ask.D.FormName, ask.D.FileName)
+	b := ask.B
 	sm := m
 
-	sd := NewStreamData(sk, fifo, sm)
+	sd := NewStreamData(sk, fifo, sm, b)
 	//logger.L.Infof("in repo.NewDistributorUnitFromStore sk = %v\n", sk)
 	adu := AppDistributorUnit{
 		H: NewAppDistributorHeader(ClientStream, sd, UnaryData{}),
@@ -479,7 +483,7 @@ func NewDistributorUnitStreamEmpty(ask AppStoreValue, d DataPiece, m Message) Ap
 	fifo := NewFiFo("", "")
 	sm := NewStreamMessage(m)
 
-	sd := NewStreamData(sk, fifo, sm)
+	sd := NewStreamData(sk, fifo, sm, BeginningData{})
 	//logger.L.Infof("in repo.NewDistributorUnitFromStore sk = %v\n", sk)
 
 	return AppDistributorUnit{
@@ -916,7 +920,7 @@ func NewAppStoreValue(d DataPiece, bou Boundary) (AppStoreValue, error) {
 	}
 	asv.D.H = header
 	asv.D.FormName, asv.D.FileName = GetFoFi(asv.D.H)
-
+	//logger.L.Infof("in repo.NewAppStoreValue dataPiece header %v, asv = %v", d.GetHeader(), asv)
 	return asv, nil
 }
 
@@ -1316,7 +1320,7 @@ func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) 
 	// dataPiece is AppPieceUnit
 
 	asv, err = NewAppStoreValue(d, bou)
-	//logger.L.Infof("in repo.NewStoreChange asv: %v, err: %v\n", asv, err)
+	//logger.L.Infof("in repo.NewStoreChange asv beginning part %d, err: %v\n", asv.B.Part, err)
 	if err != nil {
 		//logger.L.Errorf("in repo.NewStoreChange err: %v\n", err)
 		if !strings.Contains(err.Error(), "is not full") {
@@ -1572,5 +1576,6 @@ type WaitGroups struct {
 type Channels struct {
 	ChanIn  chan AppFeederUnit
 	ChanOut chan AppDistributorUnit
+	ChanLog chan string
 	Done    chan struct{}
 }

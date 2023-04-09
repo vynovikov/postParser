@@ -2,10 +2,10 @@ package application
 
 import (
 	"errors"
+	"postParser/internal/adapters/driven/store"
+	"postParser/internal/repo"
 	"sync"
 	"testing"
-	"workspaces/postParser/internal/adapters/driven/store"
-	"workspaces/postParser/internal/repo"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -236,6 +236,79 @@ func (s *applicationSuite) TestHandle() {
 									M: repo.Message{
 										PreAction:  repo.Start,
 										PostAction: repo.Continue,
+									},
+								},
+							},
+							B: repo.AppDistributorBody{
+								B: []byte("azazaza"),
+							},
+						},
+					},
+				},
+			},
+			wantErr: []error{
+				errors.New("in store.RegisterBuffer buffer has no elements"),
+			},
+		},
+
+		{
+			name: "B() == repo.False, E() == repo.True => stream-type ADU, decrementing counter, ADU preAction = repo.Open",
+			a: &App{
+				S: &store.StoreStruct{
+					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
+					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 6, Cur: 4, Started: true, Blocked: true}},
+				},
+				A: a,
+				L: &DistributorSpyLogger{},
+			},
+
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\nazazaza")},
+			},
+			bou: repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
+			wantA: &App{
+				S: &store.StoreStruct{
+					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+						{TS: "qqq"}: {
+							{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+								false: repo.AppStoreValue{
+									D: repo.Disposition{
+										H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									B: repo.BeginningData{Part: 1},
+									E: repo.True,
+								},
+							},
+						},
+					},
+					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
+					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 6, Cur: 3, Started: true, Blocked: true}},
+				},
+				A: a,
+				L: &DistributorSpyLogger{
+					calls: 1,
+					params: []repo.AppUnit{
+						repo.AppDistributorUnit{
+							H: repo.AppDistributorHeader{
+								T: repo.ClientStream,
+								S: repo.StreamData{
+									SK: repo.StreamKey{
+										TS:   "qqq",
+										Part: 1,
+									},
+									F: repo.FiFo{
+										FormName: "alice",
+										FileName: "short.txt",
+									},
+									M: repo.Message{
+										PreAction:  repo.Open,
+										PostAction: repo.Continue,
+									},
+									B: repo.BeginningData{
+										Part: 1,
 									},
 								},
 							},
@@ -495,6 +568,7 @@ func (s *applicationSuite) TestHandle() {
 										PreAction:  repo.Open,
 										PostAction: repo.Continue,
 									},
+									B: repo.BeginningData{Part: 2},
 								},
 							},
 							B: repo.AppDistributorBody{
@@ -740,6 +814,7 @@ func (s *applicationSuite) TestHandle() {
 			},
 			wantErr: []error{},
 		},
+
 		{
 			name: "B() == repo.True, E() == repo.Probably, ASKD && OB => part increments",
 			a: &App{
@@ -931,6 +1006,7 @@ func (s *applicationSuite) TestHandle() {
 				errors.New("in store.RegisterBuffer buffer has no elements"),
 			},
 		},
+
 		{
 			name: "B() == repo.True, E() == repo.True, no header => new false branch started",
 			a: &App{
@@ -1010,6 +1086,7 @@ func (s *applicationSuite) TestHandle() {
 										PreAction:  repo.Continue,
 										PostAction: repo.Continue,
 									},
+									B: repo.BeginningData{Part: 1},
 								},
 							},
 							B: repo.AppDistributorBody{
@@ -1125,6 +1202,7 @@ func (s *applicationSuite) TestHandle() {
 			},
 			wantErr: []error{},
 		},
+
 		{
 			name: "AppSub, OB => Combining opposite branches, decrementing counter Max and Cur",
 			a: &App{
@@ -1899,6 +1977,7 @@ func (s *applicationSuite) TestHandle() {
 										PreAction:  repo.Open,
 										PostAction: repo.Continue,
 									},
+									B: repo.BeginningData{Part: 3},
 								},
 							},
 							B: repo.AppDistributorBody{
@@ -2095,6 +2174,7 @@ func (s *applicationSuite) TestHandle() {
 										PreAction:  repo.Continue,
 										PostAction: repo.Continue,
 									},
+									B: repo.BeginningData{Part: 3},
 								},
 							},
 							B: repo.AppDistributorBody{
@@ -2431,6 +2511,7 @@ func (s *applicationSuite) TestHandle() {
 										PreAction:  repo.Continue,
 										PostAction: repo.Continue,
 									},
+									B: repo.BeginningData{Part: 3},
 								},
 							},
 							B: repo.AppDistributorBody{

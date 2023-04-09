@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"postParser/internal/logger"
 	"regexp"
 	"strings"
 	"unicode"
-	"workspaces/postParser/internal/logger"
 )
 
 const (

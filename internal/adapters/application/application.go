@@ -1,13 +1,14 @@
 package application
 
 import (
+	"fmt"
+	"postParser/internal/adapters/driven/rpc"
+	"postParser/internal/adapters/driven/store"
+	"postParser/internal/core"
+	"postParser/internal/logger"
+	"postParser/internal/repo"
 	"strings"
 	"sync"
-	"workspaces/postParser/internal/adapters/driven/rpc"
-	"workspaces/postParser/internal/adapters/driven/store"
-	"workspaces/postParser/internal/core"
-	"workspaces/postParser/internal/logger"
-	"workspaces/postParser/internal/repo"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -59,7 +60,7 @@ func NewAppFull(c core.Parser, s store.Store, t rpc.Transmitter) (*App, chan str
 		S: s,
 	}
 
-	App.Do()
+	//App.Do()
 	return App, done
 }
 
@@ -69,7 +70,7 @@ func NewAppEmpty() *App {
 		A: NewAppService(make(chan struct{})),
 	}
 
-	App.Do()
+	//App.Do()
 	return App
 }
 
@@ -81,6 +82,7 @@ func NewAppService(done chan struct{}) AppService {
 		C: repo.Channels{
 			ChanIn:  make(chan repo.AppFeederUnit, 10),
 			ChanOut: make(chan repo.AppDistributorUnit, 10),
+			ChanLog: make(chan string, 10),
 			Done:    done,
 		},
 	}
@@ -112,6 +114,8 @@ func (a *App) Do() {
 	a.A.W.Sender.Add(1)
 	go a.Send()
 
+	go a.Log()
+
 }
 
 func (a *App) toChanIn(afu repo.AppFeederUnit) {
@@ -139,8 +143,13 @@ func (a *App) toChanOut(adu repo.AppDistributorUnit) {
 
 }
 
+func (a *App) toChanLog(s string) {
+	//logger.L.Infof("in application.toChanLog trying to send %q to chanLog\n", s)
+	a.A.C.ChanLog <- s
+}
+
 func (a *App) Work(i int) {
-	logger.L.Infof("in application.Work worker %d started\n", i)
+	logger.L.Infof("in postparser.application.Work worker %d started\n", i)
 
 	for afu := range a.A.C.ChanIn {
 
@@ -202,6 +211,7 @@ func (a *App) Work(i int) {
 
 			for _, v := range adus {
 				//logger.L.Errorf("in application.Work extracted from buffer adu header: %v, body %q\n", v.H, v.B.B)
+				a.toChanLog(fmt.Sprintf("in application.Work extracted from buffer adu header: %v, body %q", v.H, v.B.B))
 				a.toChanOut(v)
 			}
 
@@ -229,6 +239,12 @@ func (a *App) AddToFeeder(in repo.ReceiverUnit) {
 		//logger.L.Infof("in application.toChanIn A.W.M %v\n", a.A.W.M)
 	}
 	//logger.L.Infof("in application.AddToFeeder A header %v, value %q\n", A.R.H, A.R.B.B)
+
+	/*
+		s := "sdkjfhsdjf"
+		logger.L.Infof("in application.toChanIn sending to chanLog %q\n", s)
+		a.A.C.ChanLog <- s
+	*/
 	a.A.C.ChanIn <- A
 	//logger.L.Infof("in application.AppToFeeder after a.A.C: %v\n", a.A.C)
 }
@@ -242,6 +258,13 @@ func (a *App) Send() {
 		go a.T.Transmit(adu, &a.A.transmitterLock)
 	}
 	a.A.W.Sender.Done()
+}
+
+func (a *App) Log() {
+	for l := range a.A.C.ChanLog {
+		//logger.L.Infof("in application.Log got %q, trying to grpc it\n", l)
+		go a.T.Log(l)
+	}
 }
 
 /*
@@ -261,7 +284,7 @@ func (a *App) Handle(d repo.DataPiece, bou repo.Boundary, w *sync.WaitGroup, i i
 	//defer w.Done()
 	_, prepErrs, _ := make([]repo.AppDistributorUnit, 0), make([]error, 0), d.Part()
 	//logger.L.Infof("in application.Handle handling p %d\n", p)
-	//logger.L.Infof("worker %d invoked application.Handle for dataPiece with header %v, body %q\n", i, d.GetHeader(), d.GetBody(0))
+	a.toChanLog(fmt.Sprintf("in postparser worker %d invoked application.Handle for dataPiece with header %v, body %q", i, d.GetHeader(), d.GetBody(0)))
 
 	if d.B() == repo.False && d.E() == repo.False { // for unary transmition
 
@@ -272,7 +295,7 @@ func (a *App) Handle(d repo.DataPiece, bou repo.Boundary, w *sync.WaitGroup, i i
 		a.A.appRWLock.Lock()
 
 		o, err := a.S.Dec(d)
-		//logger.L.Infof("in application.Handle worker %d for dataPiece with header %v, body %q made o %d, err %v\n", i, d.GetHeader(), d.GetBody(0), o, err)
+		//a.toChanLog(fmt.Sprintf("in application.Handle worker %d for dataPiece with header %v, body %q made o %d, err %v", i, d.GetHeader(), d.GetBody(0), o, err))
 
 		switch o {
 		case repo.FirstAndLast:
@@ -294,9 +317,14 @@ func (a *App) Handle(d repo.DataPiece, bou repo.Boundary, w *sync.WaitGroup, i i
 
 		//out = append(out, adu)
 
-		//logger.L.Infof("in application.Handle worker %d for dataPiece with header %v, body %q ==> made adu %v\n", i, d.GetHeader(), d.GetBody(0), adu)
+		a.toChanLog(fmt.Sprintf("in postparser.application.Handle worker %d for dataPiece with header %v, body %q ==> made adu %v", i, d.GetHeader(), d.GetBody(0), adu))
 
 		a.toChanOut(adu)
+
+		//logger.L.Infof("in application.Handle worker %d for dataPiece with header %v, body %q ==> made adu %v\n", i, d.GetHeader(), d.GetBody(0), adu)
+
+		//a.toChanLog(fmt.Sprintf("in application.Handle worker %d for dataPiece with header %v, body %q ==> made adu %v\n", i, d.GetHeader(), d.GetBody(0), adu))
+
 		a.A.appRWLock.Unlock()
 		w.Done()
 		return
@@ -313,7 +341,7 @@ func (a *App) Handle(d repo.DataPiece, bou repo.Boundary, w *sync.WaitGroup, i i
 	a.A.appRWLock.RLock()
 	presence, err := a.S.Presence(d) //may be changed later
 	a.A.appRWLock.RUnlock()
-	//logger.L.Infof("in application.Handle worker %d for dataPiece with header %v, body %q ==> made 1 try presense.ASKG %t, presense.ASKD %t, presense.OB %t\n", i, d.GetHeader(), d.GetBody(0), presense.ASKG, presense.ASKD, presense.OB)
+	a.toChanLog(fmt.Sprintf("in postparser.application.Handle worker %d for dataPiece with header %v, body %q ==> made 1 try presense.ASKG %t, presense.ASKD %t, presense.OB %t", i, d.GetHeader(), d.GetBody(0), presence.ASKG, presence.ASKD, presence.OB))
 	if err != nil {
 		prepErrs = append(prepErrs, err)
 	}
@@ -350,11 +378,11 @@ func (a *App) Handle(d repo.DataPiece, bou repo.Boundary, w *sync.WaitGroup, i i
 				logger.L.Errorf("in application.Handle worker %d for dataPiece with header %v ==> made 2 try presense.ASKG %t, presense.ASKD %t, presense.OB %t, err: %v\n", i, d.GetHeader(), presense.ASKG, presense.ASKD, presense.OB, err)
 			}
 		*/
-		//logger.L.Infof("in application.Handle worker %d for dataPiece with header %v, body %q ==> made 2 try presense.ASKG %t, presense.ASKD %t, presense.OB %t\n", i, d.GetHeader(), d.GetBody(0), presense.ASKG, presense.ASKD, presense.OB)
+		a.toChanLog(fmt.Sprintf("in postparser.application.Handle worker %d for dataPiece with header %v, body %q ==> made 2 try presense.ASKG %t, presense.ASKD %t, presense.OB %t", i, d.GetHeader(), d.GetBody(0), presence.ASKG, presence.ASKD, presence.OB))
 
 		sc, scErr := repo.NewStoreChange(d, presence, bou)
 		//logger.L.Infof("in application.Handle worker %d for dataPiece with header %v ==> sc.A %d\n", i, d.GetHeader(), sc.A)
-		//logger.L.Infof("in application.Handle for dataPiece with header %v, body %q ==> made sc %v, scRrr: %v\n", d.GetHeader(), d.GetBody(0), sc, scErr)
+		a.toChanLog(fmt.Sprintf("in postparser.application.Handle for dataPiece with header %v, body %q ==> made sc %v, scRrr: %v", d.GetHeader(), d.GetBody(0), sc, scErr))
 
 		if (bErr == nil && scErr != nil) ||
 			(bErr != nil && scErr != nil && scErr.Error() != bErr.Error()) {
@@ -379,7 +407,7 @@ func (a *App) Handle(d repo.DataPiece, bou repo.Boundary, w *sync.WaitGroup, i i
 	//logger.L.Infof("in application.Handle worker %d for dataPiece with header %v ==> sc: %v\n", i, d.GetHeader(), sc)
 
 	//logger.L.Infof("in application.Handle sc %v, err: %v\n", sc, scErr)
-	//logger.L.Infof("in application.Handle worker %d for dataPiece with header %v, body %q ==> made sc %v, scRrr: %v\n", i, d.GetHeader(), d.GetBody(0), sc, scErr)
+	a.toChanLog(fmt.Sprintf("in postparser.application.Handle worker %d for dataPiece with header %v, body %q ==> made sc %v, scRrr: %v", i, d.GetHeader(), d.GetBody(0), sc, scErr))
 
 	if (bErr == nil && scErr != nil) ||
 		(bErr != nil && scErr != nil && scErr.Error() != bErr.Error()) {
@@ -426,7 +454,7 @@ func (a *App) doHandle(d repo.DataPiece, sc repo.StoreChange, adub repo.AppDistr
 			sc.A = repo.Buffer
 		}
 
-		//logger.L.Infof("in application.doHandle for apu with header %v got o = %d, decrementErr: %v\n", d.GetHeader(), o, decrementErr)
+		a.toChanLog(fmt.Sprintf("in postparser.application.doHandle for apu with header %v got o = %d, decrementErr: %v", d.GetHeader(), o, decrementErr))
 
 		//logger.L.Infof("in application.doHandle for apu with header %v got order = %d\n", d.GetHeader(), o)
 	}
@@ -445,7 +473,7 @@ func (a *App) doHandle(d repo.DataPiece, sc repo.StoreChange, adub repo.AppDistr
 		aduh := CalcHeader(d, sc, o)
 		//logger.L.Infof("in application.doHandle for apu with header %v got aduh = %v\n", d.GetHeader(), aduh)
 		adu := repo.NewAppDistributorUnit(aduh, adub)
-		//logger.L.Infof("in application.doHandle for apu with header %v got adu header: %v, body: %q\n", d.GetHeader(), adu.H, adu.B.B)
+		a.toChanLog(fmt.Sprintf("in postparser.application.doHandle for apu with header %v got adu header: %v, body: %q", d.GetHeader(), adu.H, adu.B.B))
 		adus = append(adus, adu)
 	}
 
@@ -457,11 +485,11 @@ func (a *App) doHandle(d repo.DataPiece, sc repo.StoreChange, adub repo.AppDistr
 			for _, v := range errsFromBuffer {
 				logger.L.Errorf("in application.doHandle apu with header %v extracted from buffer error: %v\n", d.GetHeader(), v)
 			}
-
-			for _, v := range adusFromBuffer {
-				logger.L.Infof("in application.doHandle apu with header %v extracted from buffer adu with header: %v\n", d.GetHeader(), v.H)
-			}
 		*/
+		for _, v := range adusFromBuffer {
+			a.toChanLog(fmt.Sprintf("in postparser.application.doHandle apu with header %v extracted from buffer adu with header: %v", d.GetHeader(), v.H))
+		}
+
 		adus = append(adus, adusFromBuffer...)
 		errs = append(errs, errsFromBuffer...)
 	}
@@ -497,7 +525,7 @@ func CalcBody(d repo.DataPiece, bou repo.Boundary) (repo.AppDistributorBody, []b
 }
 
 func CalcHeader(d repo.DataPiece, sc repo.StoreChange, o repo.Order) repo.AppDistributorHeader {
-	aduh, askd, fo, fi, f, pre, post := repo.AppDistributorHeader{}, repo.NewAppStoreKeyDetailed(d), "", "", repo.FiFo{}, repo.None, repo.None
+	aduh, askd, fo, fi, f, b, pre, post := repo.AppDistributorHeader{}, repo.NewAppStoreKeyDetailed(d), "", "", repo.FiFo{}, repo.BeginningData{}, repo.None, repo.None
 	if d.IsSub() {
 		return aduh
 	}
@@ -507,6 +535,7 @@ func CalcHeader(d repo.DataPiece, sc repo.StoreChange, o repo.Order) repo.AppDis
 	//fo, fi := sc.To[askd][false].D.FormName, sc.To[askd][false].D.FileName
 	for i := range sc.To {
 		fo, fi = sc.To[i][false].D.FormName, sc.To[i][false].D.FileName
+		b = sc.To[i][false].B
 		break
 	}
 	f = repo.NewFiFo(fo, fi)
@@ -542,8 +571,9 @@ func CalcHeader(d repo.DataPiece, sc repo.StoreChange, o repo.Order) repo.AppDis
 	}
 
 	m := repo.NewMessage(pre, post)
+	//b:=repo.NewBeginningData(sc.To)
 	//logger.L.Infof("in application.CalcHeader m: %v\n", m)
-	aduh = repo.NewAppDistributorHeaderStream(d, f, m)
+	aduh = repo.NewAppDistributorHeaderStream(d, f, m, b)
 
 	return aduh
 }

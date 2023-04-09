@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package rpc;
+
+option go_package = "./pb";
+
+message LogReq {
+    string ts = 1;
+    string logString = 2;
+}
+
+message LogRes {    
+    bool result = 1;
+}

@@ -8,7 +8,7 @@ message TextFieldReq {
     string ts = 1;
     string name = 2;
     string filename = 3;
-    bytes byteChunk = 4;
+    bytes byteChunk = 4;    
     bool isFirst = 5;
     bool isLast = 6;
 }
@@ -27,8 +27,10 @@ message FileInfo{
 
 message FileData{
     string ts = 1;
-    bytes byteChunk = 2;
-    bool isLast = 3;
+    string fieldName = 2;
+    uint32 number = 3;
+    bytes byteChunk = 4;
+    bool isLast = 5;
     
 }
 

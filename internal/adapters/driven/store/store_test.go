@@ -2,8 +2,8 @@ package store
 
 import (
 	"errors"
+	"postParser/internal/repo"
 	"testing"
-	"workspaces/postParser/internal/repo"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -52,7 +52,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Close}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 3}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Close}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -89,7 +89,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 3}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -126,7 +126,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 3}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -163,7 +163,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 3}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -202,7 +202,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, U: repo.UnaryData{}, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, U: repo.UnaryData{}, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 3}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -283,7 +283,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 3}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -353,7 +353,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: errors.New("in store.Register dataPiece group with TS \"qqq\" and Part \"3\" is finished"),
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Close}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 3}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Close}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -392,7 +392,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 3}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -446,7 +446,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 3}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 
 		{
@@ -666,7 +666,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: errors.New("in store.Register new dataPiece group with TS \"qqq\" and Part = 5"),
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, U: repo.UnaryData{}, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 7}, F: repo.FiFo{FormName: "bob", FileName: "long.txt"}, M: repo.Message{PreAction: repo.StopLast, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazazazazaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, U: repo.UnaryData{}, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 7}, F: repo.FiFo{FormName: "bob", FileName: "long.txt"}, B: repo.BeginningData{Part: 5}, M: repo.Message{PreAction: repo.StopLast, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazazazazaza")}},
 		},
 
 		{
@@ -714,7 +714,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: nil,
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 6}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("\r\n----------------azazaza\r\nbzbzbzbzb")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 6}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 3}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("\r\n----------------azazaza\r\nbzbzbzbzb")}},
 		},
 
 		{
@@ -760,7 +760,7 @@ func (s *storeSuite) TestRegister() {
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 			},
 			wantErr: errors.New("in store.Register new dataPiece group with TS \"qqq\" and Part = 5"),
-			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, U: repo.UnaryData{}, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 6}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, U: repo.UnaryData{}, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 6}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 5}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 		},
 	}
 	for _, v := range tt {
@@ -901,7 +901,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
 					}},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 5, Blocked: true}},
+					{TS: "qqq"}: {Max: 6, Cur: 5, Started: true, Blocked: true}},
 			},
 
 			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
@@ -922,10 +922,10 @@ func (s *storeSuite) TestRegisterBuffer() {
 						}}},
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 4, Blocked: true}},
+					{TS: "qqq"}: {Max: 6, Cur: 4, Started: true, Blocked: true}},
 			},
 			wantADUs: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 			},
 			wantErr: []error{},
 		},
@@ -962,7 +962,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 						&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("czczczcz")}},
 					}},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 5, Blocked: true}},
+					{TS: "qqq"}: {Max: 6, Cur: 5, Started: true, Blocked: true}},
 			},
 
 			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
@@ -984,11 +984,11 @@ func (s *storeSuite) TestRegisterBuffer() {
 					}},
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 3, Blocked: true}},
+					{TS: "qqq"}: {Max: 6, Cur: 3, Started: true, Blocked: true}},
 			},
 			wantADUs: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 2, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("\r\nczczczcz")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 2, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazaza")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("\r\nczczczcz")}},
 			},
 			wantErr: []error{},
 		},
@@ -1039,10 +1039,10 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 3, Cur: 2, Blocked: true}},
+					{TS: "qqq"}: {Max: 3, Cur: 2, Started: true, Blocked: true}},
 			},
 			wantADUs: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 2, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 2, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 			},
 			wantErr: []error{},
 		},
@@ -1071,7 +1071,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 5, Blocked: true}},
+					{TS: "qqq"}: {Max: 6, Cur: 5, Started: true, Blocked: true}},
 			},
 			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
 			bou:  repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
@@ -1091,12 +1091,12 @@ func (s *storeSuite) TestRegisterBuffer() {
 						}}},
 				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 2, Blocked: true}},
+					{TS: "qqq"}: {Max: 6, Cur: 2, Started: true, Blocked: true}},
 			},
 			wantADUs: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzb")}},
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("czczc")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzb")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 5, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("czczc")}},
 			},
 			wantErr: []error{},
 		},
@@ -1125,7 +1125,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 3, Blocked: true}},
+					{TS: "qqq"}: {Max: 6, Cur: 3, Started: true, Blocked: true}},
 			},
 			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
 			bou:  repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
@@ -1148,16 +1148,16 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 1, Blocked: true},
+					{TS: "qqq"}: {Max: 6, Cur: 1, Started: true, Blocked: true},
 				},
 			},
 
 			wantADUs: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzb")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzb")}},
 			},
 			wantErr: []error{
-				errors.New("in store.RegisterBuffer buffer has single element and current counter == 1 and fuse"),
+				errors.New("in store.RegisterBuffer buffer has single element and current counter == 1 and blocked"),
 			},
 		},
 
@@ -1187,7 +1187,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 5, Blocked: true}},
+					{TS: "qqq"}: {Max: 6, Cur: 5, Started: true, Blocked: true}},
 			},
 			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
 			bou:  repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
@@ -1211,11 +1211,11 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 3, Blocked: true}},
+					{TS: "qqq"}: {Max: 6, Cur: 3, Started: true, Blocked: true}},
 			},
 			wantADUs: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzb")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzb")}},
 			},
 			wantErr: []error{},
 		},
@@ -1244,7 +1244,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 5, Blocked: true}},
+					{TS: "qqq"}: {Max: 6, Cur: 5, Started: true, Blocked: true}},
 			},
 			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
 			bou:  repo.Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
@@ -1268,11 +1268,11 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 6, Cur: 3, Blocked: true}},
+					{TS: "qqq"}: {Max: 6, Cur: 3, Started: true, Blocked: true}},
 			},
 			wantADUs: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzb")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzb")}},
 			},
 			wantErr: []error{
 				errors.New("in store.Register got double-meaning dataPiece"),
@@ -1280,7 +1280,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 		},
 
 		{
-			name: "len(B)==1, has current counter == 1 && fuse",
+			name: "len(B)==1, has current counter == 1 && blocked",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -1301,7 +1301,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 3, Cur: 1, Blocked: true},
+					{TS: "qqq"}: {Max: 3, Cur: 1, Started: true, Blocked: true},
 				},
 			},
 			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
@@ -1326,17 +1326,17 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 3, Cur: 1, Blocked: true},
+					{TS: "qqq"}: {Max: 3, Cur: 1, Started: true, Blocked: true},
 				},
 			},
 			wantADUs: []repo.AppDistributorUnit{},
 			wantErr: []error{
-				errors.New("in store.RegisterBuffer buffer has single element and current counter == 1 and fuse"),
+				errors.New("in store.RegisterBuffer buffer has single element and current counter == 1 and blocked"),
 			},
 		},
 
 		{
-			name: "len(B)==3, has current counter == 2 && fuse",
+			name: "len(B)==3, has current counter == 2 && blocked",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -1384,20 +1384,20 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 3, Cur: 1, Blocked: true},
+					{TS: "qqq"}: {Max: 3, Cur: 1, Started: true, Blocked: true},
 				},
 			},
 			wantADUs: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazazaza")}},
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzbzbzb")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazazaza")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 4, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("bzbzbzbzb")}},
 			},
 			wantErr: []error{
-				errors.New("in store.RegisterBuffer buffer has single element and current counter == 1 and fuse"),
+				errors.New("in store.RegisterBuffer buffer has single element and current counter == 1 and blocked"),
 			},
 		},
 
 		{
-			name: "len(B)==1, has current counter == 1 && !fuse => resetting store",
+			name: "len(B)==1, has current counter == 1 && !blocked => resetting store",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -1418,7 +1418,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 					},
 				},
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{
-					{TS: "qqq"}: {Max: 3, Cur: 1, Blocked: false},
+					{TS: "qqq"}: {Max: 3, Cur: 1, Started: true, Blocked: false},
 				},
 			},
 			askg: repo.AppStoreKeyGeneral{TS: "qqq"},
@@ -1429,7 +1429,7 @@ func (s *storeSuite) TestRegisterBuffer() {
 				C: map[repo.AppStoreKeyGeneral]repo.Counter{},
 			},
 			wantADUs: []repo.AppDistributorUnit{
-				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("azazazaza")}},
+				{H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 3, N: false}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 1}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("azazazaza")}},
 			},
 			wantErr: []error{
 				errors.New("in store.Register dataPiece group with TS \"qqq\" and Part \"1\" is finished"),

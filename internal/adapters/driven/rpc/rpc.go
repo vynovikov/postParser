@@ -3,12 +3,14 @@ package rpc
 import (
 	"context"
 	"fmt"
-	"net"
+	"os"
+	tosaver "postParser/internal/adapters/driven/rpc/tosaver/pb"
 	"sort"
 	"sync"
-	"workspaces/postParser/internal/adapters/driven/rpc/pb"
-	"workspaces/postParser/internal/logger"
-	"workspaces/postParser/internal/repo"
+
+	tologger "postParser/internal/adapters/driven/rpc/tologger/pb"
+	"postParser/internal/logger"
+	"postParser/internal/repo"
 
 	errs "github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -17,53 +19,61 @@ import (
 )
 
 var (
-	Stream pb.PostParser_MultiPartClient
-	req    *pb.FileUploadReq
+	Stream tosaver.Saver_MultiPartClient
+	req    *tosaver.FileUploadReq
 	err    error
 )
 
 type Transmitter interface {
 	Transmit(repo.AppDistributorUnit, *sync.Mutex)
+	Log(string) []error
 }
 
 type TransmitAdapter struct {
-	c      pb.PostParserClient
-	M      map[repo.StreamKey]pb.PostParser_MultiPartClient // stream map
-	LastSK repo.StreamKey
-	CurSK  repo.StreamKey
-	CurReq *pb.FileUploadReq
-	lock   sync.Mutex
+	saverClient  tosaver.SaverClient
+	loggerClient tologger.LoggerClient
+	M            map[repo.StreamKey]tosaver.Saver_MultiPartClient // stream map
+	LastSK       repo.StreamKey
+	CurSK        repo.StreamKey
+	CurReq       *tosaver.FileUploadReq
+	lock         sync.Mutex
 }
 
 func NewTransmitter(lis *bufconn.Listener) *TransmitAdapter {
-	//connectString := "localhost:3100"
+	//connectStringToSaver := "localhost:3100"
 	var (
-		connectString string
-		conn          *grpc.ClientConn
-		err           error
+		connectStringToSaver  string
+		connectStringToLogger string
+		connToSaver           *grpc.ClientConn
+		connToLogger          *grpc.ClientConn
+		err                   error
 	)
-	if lis != nil {
-		conn, err = grpc.Dial("",
-			grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
-				return lis.Dial()
-			}),
-			grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
-			logger.L.Error(errs.Wrap(err, "rpc.Transmit.grpc.dial"))
-		}
-	} else {
-		connectString = "localhost" + ":" + "3100"
-		conn, err = grpc.Dial(connectString, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
-			logger.L.Error(errs.Wrap(err, "rpc.Transmit.grpc.dial"))
-		}
+
+	saverHostName, loggerHostName := os.Getenv(("SAVER_HOSTNAME")), os.Getenv(("LOGGER_HOSTNAME"))
+	if len(saverHostName) == 0 {
+		saverHostName = "localhost"
+	}
+	if len(loggerHostName) == 0 {
+		loggerHostName = "localhost"
 	}
 
-	client := pb.NewPostParserClient(conn)
+	connectStringToSaver = saverHostName + ":" + "3100"
+	connToSaver, err = grpc.Dial(connectStringToSaver, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logger.L.Error(errs.Wrap(err, "rpc.Transmit.grpc.dial"))
+	}
+	connectStringToLogger = "postlogger" + ":" + "3200"
+	connToLogger, err = grpc.Dial(connectStringToLogger, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logger.L.Error(errs.Wrap(err, "rpc.Transmit.grpc.dial"))
+	}
+
+	//client := tosaver.NewPostParserClient(conn)
 
 	return &TransmitAdapter{
-		c: client,
-		M: make(map[repo.StreamKey]pb.PostParser_MultiPartClient),
+		saverClient:  tosaver.NewSaverClient(connToSaver),
+		loggerClient: tologger.NewLoggerClient(connToLogger),
+		M:            make(map[repo.StreamKey]tosaver.Saver_MultiPartClient),
 	}
 }
 
@@ -72,7 +82,8 @@ func (t *TransmitAdapter) Transmit(adu repo.AppDistributorUnit, mu *sync.Mutex) 
 
 	switch adu.H.T {
 	case repo.Unary:
-		t.transmitUnary(t.c, adu, mu)
+		//logger.L.Warnf("in grpc.Transmit trying to send via unary adu header %v, body %q\n", adu.H, adu.B.B)
+		t.transmitUnary(t.saverClient, adu, mu)
 		/*
 			for _, rng := range errs {
 				logger.L.Errorf("in grpc.Transmit err: %v\n", rng)
@@ -80,8 +91,8 @@ func (t *TransmitAdapter) Transmit(adu repo.AppDistributorUnit, mu *sync.Mutex) 
 		*/
 	case repo.ClientStream:
 
-		//logger.L.Warnf("in grpc.Transmit trying to send adu header %v, body %q\n", v.H, v.B.B)
-		t.transmitStream(t.c, adu, mu)
+		//logger.L.Warnf("in grpc.Transmit trying to send via stream adu header %v, body %q\n", adu.H, adu.B.B)
+		t.transmitStream(t.saverClient, adu, mu)
 		/*
 			for _, rng := range errs {
 				logger.L.Errorf("in grpc.Transmit err: %v\n", rng)
@@ -93,9 +104,25 @@ func (t *TransmitAdapter) Transmit(adu repo.AppDistributorUnit, mu *sync.Mutex) 
 	}
 
 }
+func (t *TransmitAdapter) Log(s string) []error {
+
+	errs := make([]error, 0)
+	req := &tologger.LogReq{}
+
+	//logger.L.Infof("in rpc.Log trying to log %q\n", s)
+	req.Ts = repo.NewTS()
+	req.LogString = s
+
+	_, err := t.loggerClient.Log(context.Background(), req)
+	if err != nil {
+		logger.L.Errorf("in rpc.Log error %v\n", err)
+		errs = append(errs, err)
+	}
+	return errs
+}
 
 // update proto msg to use last flag
-func (t *TransmitAdapter) transmitUnary(c pb.PostParserClient, aduOne repo.AppDistributorUnit, mu *sync.Mutex) []error {
+func (t *TransmitAdapter) transmitUnary(c tosaver.SaverClient, aduOne repo.AppDistributorUnit, mu *sync.Mutex) []error {
 	//logger.L.Infof("grpc.transmitUnary invoked for aduOne header %v, body %q \n", aduOne.H, aduOne.GetBody())
 	errs, streamKyes := make([]error, 0), make([]repo.StreamKey, 0)
 	if aduOne.H.U.M.PreAction == repo.Start {
@@ -133,7 +160,7 @@ func (t *TransmitAdapter) transmitUnary(c pb.PostParserClient, aduOne repo.AppDi
 		mu.Unlock()
 	}
 
-	//logger.L.Infof("in grpc.transmitUnary aduOne header %v, body %q sending\n", aduOne.H, aduOne.GetBody())
+	//logger.L.Infof("in grpc.transmitUnary aduOne header %v, body %q req %v sending\n", aduOne.H, aduOne.GetBody(), req)
 	_, err := c.SinglePart(context.Background(), req)
 
 	if err != nil {
@@ -147,10 +174,10 @@ func (t *TransmitAdapter) transmitUnary(c pb.PostParserClient, aduOne repo.AppDi
 }
 
 // handles stream ADUs, reads ans writes t.M
-func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppDistributorUnit, mu *sync.Mutex) []error {
+func (t *TransmitAdapter) transmitStream(c tosaver.SaverClient, aduOne repo.AppDistributorUnit, mu *sync.Mutex) []error {
 	//logger.L.Infof("grpc.transmitStream invoked with adu header %v, message %q, t.M: %v\n", aduOne.H, aduOne.H.S.M, t.M)
 	var (
-		stream pb.PostParser_MultiPartClient
+		stream tosaver.Saver_MultiPartClient
 		err    error
 	)
 	errs := make([]error, 0)
@@ -173,7 +200,7 @@ func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppD
 			stream, err = t.NewStream(aduOne.H.S.SK.TS, aduOne.H.S.F.FormName, aduOne.H.S.F.FileName, false)
 		}
 		if err != nil {
-			//	logger.L.Errorf("in grpc.transmitStream error: %v\n", err)
+			logger.L.Errorf("in grpc.transmitStream error: %v\n", err)
 			errs = append(errs, err)
 		}
 		t.M[streamKeyes[0]] = stream
@@ -181,7 +208,7 @@ func (t *TransmitAdapter) transmitStream(c pb.PostParserClient, aduOne repo.AppD
 		if aduOne.H.S.M.PreAction != repo.Start {
 			mu.Unlock()
 		}
-
+		//logger.L.Infof("in grpc.transmitStream for adu header %v preAction = repo.Start or repo.Open sending req: %v\n", aduOne.H, req)
 		err = stream.Send(req)
 		//logger.L.Infof("in grpc.transmitStream for adu header %v preAction = repo.Start or repo.Open req: %v has been sent to SK %v, t.M became %v\n", aduOne.H, req, streamKeyes[0], t.M)
 
@@ -419,10 +446,10 @@ func (t *TransmitAdapter) Register(aduHeader repo.AppDistributorHeader) ([]repo.
 
 }
 
-func (t *TransmitAdapter) NewStream(ts, fo, fi string, f bool) (pb.PostParser_MultiPartClient, error) {
-	reqInit := &pb.FileUploadReq{
-		Info: &pb.FileUploadReq_FileInfo{
-			FileInfo: &pb.FileInfo{
+func (t *TransmitAdapter) NewStream(ts, fo, fi string, f bool) (tosaver.Saver_MultiPartClient, error) {
+	reqInit := &tosaver.FileUploadReq{
+		Info: &tosaver.FileUploadReq_FileInfo{
+			FileInfo: &tosaver.FileInfo{
 				Ts:        ts,
 				IsFirst:   f,
 				FieldName: fo,
@@ -430,7 +457,7 @@ func (t *TransmitAdapter) NewStream(ts, fo, fi string, f bool) (pb.PostParser_Mu
 			},
 		},
 	}
-	newStream, err := t.c.MultiPart(context.Background())
+	newStream, err := t.saverClient.MultiPart(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -442,8 +469,8 @@ func (t *TransmitAdapter) NewStream(ts, fo, fi string, f bool) (pb.PostParser_Mu
 	return newStream, nil
 }
 
-func (t *TransmitAdapter) NewReqUnary(aduOne repo.AppDistributorUnit) *pb.TextFieldReq {
-	req := &pb.TextFieldReq{}
+func (t *TransmitAdapter) NewReqUnary(aduOne repo.AppDistributorUnit) *tosaver.TextFieldReq {
+	req := &tosaver.TextFieldReq{}
 
 	req.Ts = aduOne.H.U.UK.TS
 	req.Name = aduOne.H.U.F.FormName
@@ -462,11 +489,15 @@ func (t *TransmitAdapter) NewReqUnary(aduOne repo.AppDistributorUnit) *pb.TextFi
 	return req
 }
 
-func (t *TransmitAdapter) NewReqStream(aduOne repo.AppDistributorUnit) *pb.FileUploadReq {
+func (t *TransmitAdapter) NewReqStream(aduOne repo.AppDistributorUnit) *tosaver.FileUploadReq {
 
-	FD, I, req := &pb.FileData{}, &pb.FileUploadReq_FileData{}, &pb.FileUploadReq{}
+	FD, I, req := &tosaver.FileData{}, &tosaver.FileUploadReq_FileData{}, &tosaver.FileUploadReq{}
 
+	FD.Ts = aduOne.H.S.SK.TS
+	FD.FieldName = aduOne.H.S.F.FormName
 	FD.ByteChunk = aduOne.B.B
+	//logger.L.Infof("in rpc.NewReqStream adu header %v has SK.Part = %d, SK.B,Part = %d\n", aduOne.H, aduOne.H.S.SK.Part, aduOne.H.S.B.Part)
+	FD.Number = uint32(aduOne.H.S.SK.Part - aduOne.H.S.B.Part)
 
 	if aduOne.H.S.M.PostAction == repo.Finish {
 		FD.IsLast = true
@@ -475,10 +506,12 @@ func (t *TransmitAdapter) NewReqStream(aduOne repo.AppDistributorUnit) *pb.FileU
 	I.FileData = FD
 	req.Info = I
 
+	//logger.L.Infof("in rpc.NewReqStream adu header %v body %q converted into req number %d\n", aduOne.H, aduOne.B.B, req.GetFileData().Number)
+
 	return req
 }
 
-func DecodeUnaryReq(r *pb.TextFieldReq) repo.GRequest {
+func DecodeUnaryReq(r *tosaver.TextFieldReq) repo.GRequest {
 	res := repo.GRequest{}
 
 	res.FieldName = r.Name
@@ -491,7 +524,7 @@ func DecodeUnaryReq(r *pb.TextFieldReq) repo.GRequest {
 	return res
 }
 
-func DecodeStreamInfoReq(r *pb.FileUploadReq) repo.GRequest {
+func DecodeStreamInfoReq(r *tosaver.FileUploadReq) repo.GRequest {
 	res := repo.GRequest{}
 
 	info := r.GetFileInfo()
@@ -505,7 +538,7 @@ func DecodeStreamInfoReq(r *pb.FileUploadReq) repo.GRequest {
 	return res
 }
 
-func DecodeStreamDataReq(r *pb.FileUploadReq, info *pb.FileInfo) repo.GRequest {
+func DecodeStreamDataReq(r *tosaver.FileUploadReq, info *tosaver.FileInfo) repo.GRequest {
 	res := repo.GRequest{}
 
 	res.FileData = true

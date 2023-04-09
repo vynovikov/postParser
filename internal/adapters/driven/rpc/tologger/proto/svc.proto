@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package rpc;
+
+option go_package = "./pb";
+
+import "internal/adapters/driven/rpc/tologger/proto/msg.proto";
+
+service Logger {
+    rpc Log(LogReq) returns (LogRes) {};
+}

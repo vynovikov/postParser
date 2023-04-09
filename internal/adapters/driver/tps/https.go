@@ -5,11 +5,11 @@ import (
 	"io"
 	"net"
 	"os"
+	"postParser/internal/adapters/application"
+	"postParser/internal/logger"
+	"postParser/internal/repo"
 	"strings"
 	"sync"
-	"workspaces/postParser/internal/adapters/application"
-	"workspaces/postParser/internal/logger"
-	"workspaces/postParser/internal/repo"
 )
 
 type TpsServer struct {
@@ -30,7 +30,7 @@ type tpsReceiverStruct struct {
 
 func NewTpsReceiver(a application.Application) *tpsReceiverStruct {
 
-	cer, err := tls.LoadX509KeyPair("../../tls/cert.pem", "../../tls/key.pem")
+	cer, err := tls.LoadX509KeyPair("tls/cert.pem", "tls/key.pem")
 	if err != nil {
 		logger.L.Errorf("in tp.NewTpsReceiver tls.LoadX509KeyPair returned err: %v\n", err)
 		return nil
@@ -42,7 +42,7 @@ func NewTpsReceiver(a application.Application) *tpsReceiverStruct {
 	if err != nil {
 		logger.L.Errorf("in driver.Run error: %v\n", err)
 	}
-	logger.L.Info("listening on :443")
+	logger.L.Infoln("listening localhost:443")
 
 	srv := &TpsServer{l: li}
 

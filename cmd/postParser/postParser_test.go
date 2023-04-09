@@ -7,15 +7,19 @@ import (
 	"math"
 	"net"
 	"os"
+	"postParser/internal/adapters/driven/rpc"
 	"strings"
 	"sync"
 	"syscall"
 	"testing"
 	"time"
-	"workspaces/postParser/internal/adapters/driven/rpc"
-	"workspaces/postParser/internal/adapters/driven/rpc/pb"
-	"workspaces/postParser/internal/logger"
-	"workspaces/postParser/internal/repo"
+
+	//"workspaces/postParser/internal/adapters/driven/rpc/tosaver/pb"
+	tologger "postParser/internal/adapters/driven/rpc/tologger/pb"
+	"postParser/internal/adapters/driven/rpc/tosaver/pb"
+	tosaver "postParser/internal/adapters/driven/rpc/tosaver/pb"
+	"postParser/internal/logger"
+	"postParser/internal/repo"
 
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
@@ -30,19 +34,23 @@ func TestMainSuite(t *testing.T) {
 }
 
 var (
-	numChan    chan int
-	reqChan    chan repo.GRequest
-	resChan    chan []repo.GRequest
-	sigChan    chan os.Signal
-	l          sync.Mutex
-	wg         sync.WaitGroup
-	baseServer *grpc.Server
-	gReqs      []repo.GRequest
-	gotLast    int
+	numChan     chan int
+	reqChan     chan repo.GRequest
+	resChan     chan []repo.GRequest
+	sigChan     chan os.Signal
+	l           sync.Mutex
+	wg          sync.WaitGroup
+	baseServer1 *grpc.Server
+	baseServer2 *grpc.Server
+	gReqs       []repo.GRequest
+	gotLast     int
 )
 
-type Server struct {
-	pb.PostParserServer
+type SaverServer struct {
+	tosaver.SaverServer
+}
+type LogServer struct {
+	tologger.LoggerServer
 }
 
 func (s *mainSuite) SetupTest() {
@@ -52,15 +60,23 @@ func (s *mainSuite) SetupTest() {
 	sigChan = make(chan os.Signal, 1)
 
 	gotLast = -1
-	lis, err := net.Listen("tcp", ":3100")
+	lisSaver, err := net.Listen("tcp", ":3100")
 	if err != nil {
 		logger.L.Errorf("in main.SetupTest failed to listen on 3100: %v\n", err)
 	}
+	lisLogger, err := net.Listen("tcp", ":3200")
+	if err != nil {
+		logger.L.Errorf("in main.SetupTest failed to listen on 3200: %v\n", err)
+	}
 
-	baseServer = grpc.NewServer()
-	pb.RegisterPostParserServer(baseServer, new(Server))
-	go baseServer.Serve(lis)
+	baseServer1 = grpc.NewServer()
+	tosaver.RegisterSaverServer(baseServer1, new(SaverServer))
 
+	baseServer2 = grpc.NewServer()
+	tologger.RegisterLoggerServer(baseServer2, new(LogServer))
+
+	go baseServer1.Serve(lisSaver)
+	go baseServer2.Serve(lisLogger)
 }
 
 func (s *mainSuite) TestBetterGracefulShutdown() {
@@ -648,17 +664,17 @@ func jobBrief(s *mainSuite, name string, req []byte, wantGReqs []repo.GRequest, 
 	if len(wantGReqs) == 0 {
 		return
 	}
-	//logger.L.Infoln("in main.jobBrief sleeping")
+	logger.L.Infoln("in main.jobBrief sleeping")
 	initialSleep := math.Max(float64(60*len(wantGReqs)), 200)
 
 	time.Sleep(time.Duration(initialSleep) * time.Millisecond)
 
-	//logger.L.Infoln("in main.jobBrief dialing")
+	logger.L.Infoln("in main.jobBrief dialing")
 	conn, err := net.Dial("tcp", ":3000")
 	s.NoError(err)
 	defer conn.Close()
 
-	//logger.L.Infoln("in main.jobBrief writing request")
+	logger.L.Infoln("in main.jobBrief writing request")
 	_, err = conn.Write(req)
 	s.NoError(err)
 
@@ -668,12 +684,12 @@ func jobBrief(s *mainSuite, name string, req []byte, wantGReqs []repo.GRequest, 
 		n++
 	}
 
-	//logger.L.Infof("in main.jobBrief sending %d to numChan\n", n)
+	logger.L.Infof("in main.jobBrief sending %d to numChan\n", n)
 	numChan <- n
 
-	//logger.L.Infoln("in main.jobBrief waiting for result")
+	logger.L.Infoln("in main.jobBrief waiting for result")
 	result := <-resChan
-	//logger.L.Infof("in main.jobBrief result len %d\n", len(result))
+	logger.L.Infof("in main.jobBrief result len %d\n", len(result))
 	s.True(repo.IsOk(name, wantGReqs, result))
 }
 
@@ -1973,7 +1989,7 @@ func (s *mainSuite) TestWorkflow() {
 
 // time.Millisecond * 200
 
-func (s *Server) SinglePart(ctx context.Context, in *pb.TextFieldReq) (*pb.TextFieldRes, error) {
+func (ss *SaverServer) SinglePart(ctx context.Context, in *tosaver.TextFieldReq) (*pb.TextFieldRes, error) {
 	//logger.L.Infof("in main.SinglePart received %v\n", in)
 	resToChan := rpc.DecodeUnaryReq(in)
 
@@ -1982,7 +1998,7 @@ func (s *Server) SinglePart(ctx context.Context, in *pb.TextFieldReq) (*pb.TextF
 	return resToReturn, nil
 }
 
-func (s *Server) MultiPart(stream pb.PostParser_MultiPartServer) error {
+func (ss *SaverServer) MultiPart(stream tosaver.Saver_MultiPartServer) error {
 	n := 0
 	reqInfo, err := stream.Recv()
 	if err != nil {
@@ -1991,7 +2007,7 @@ func (s *Server) MultiPart(stream pb.PostParser_MultiPartServer) error {
 	//	l.Lock()
 
 	reqInfoToChan := rpc.DecodeStreamInfoReq(reqInfo)
-	//logger.L.Infof("in main.MultiPart initial req %v, decoded %v\n", reqInfo, reqInfoToChan)
+	logger.L.Infof("in main.MultiPart initial req %v, decoded %v\n", reqInfo, reqInfoToChan)
 	reqChan <- reqInfoToChan
 
 	for {
@@ -2013,7 +2029,7 @@ func (s *Server) MultiPart(stream pb.PostParser_MultiPartServer) error {
 		}
 
 		resDataToChan := rpc.DecodeStreamDataReq(reqData, reqInfo.GetFileInfo())
-		//logger.L.Infof("in main.MultiPart for looped req %v\n", reqData)
+		logger.L.Infof("in main.MultiPart for looped req %v\n", reqData)
 		reqChan <- resDataToChan
 		//	l.Unlock()
 		n++
@@ -2030,6 +2046,10 @@ func (s *Server) MultiPart(stream pb.PostParser_MultiPartServer) error {
 	}
 
 	return nil
+}
+func (sl *LogServer) Log(ctx context.Context, in *tologger.LogReq) (*tologger.LogRes, error) {
+	logger.L.Infof("in main.Log received %v\n", in)
+	return &tologger.LogRes{Result: true}, nil
 }
 
 func feedback(reqChan chan repo.GRequest, gReqs *[]repo.GRequest) {
@@ -2208,4 +2228,43 @@ func add(res []repo.GRequest, r repo.GRequest) []repo.GRequest {
 		res = append(res, r)
 	}
 	return res
+}
+
+func (s *mainSuite) TestToLogger() {
+	go main()
+	tt := []struct {
+		name string
+		req  []byte
+	}{
+		{
+			name: "1",
+			req: []byte(
+				"POST / HTTP/1.1\r\n" +
+					"Host: localhost\r\n" +
+					"User-Agent: curl/7.75.0\r\n" +
+					"Accept: */*\r\n" +
+					"Content-Length: 5250\r\n" +
+					"Content-Type: multipart/form-data; boundary=------------------------c61fd8e07a9d3f9b\r\n" +
+					"\r\n" +
+					"--------------------------c61fd8e07a9d3f9b\r\n" +
+					"Content-Disposition: form-data; name=\"alice\"\r\n" +
+					"\r\n" +
+					"azaza\r\n" +
+					"--------------------------c61fd8e07a9d3f9b--\r\n"),
+		},
+	}
+	for _, v := range tt {
+		s.Run(v.name, func() {
+
+			//logger.L.Infoln("in main.TestToLogger dialing")
+			conn, err := net.Dial("tcp", ":3000")
+			s.NoError(err)
+			defer conn.Close()
+
+			//logger.L.Infoln("in main.TestToLogger writing request")
+			_, err = conn.Write(v.req)
+			s.NoError(err)
+			time.Sleep(time.Second * 5)
+		})
+	}
 }

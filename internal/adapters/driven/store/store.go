@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"postParser/internal/repo"
 	"sort"
 	"strings"
 	"sync"
-	"workspaces/postParser/internal/repo"
 )
 
 type StoreStruct struct {
@@ -668,7 +668,7 @@ func (s *StoreStruct) RegisterBuffer(askg repo.AppStoreKeyGeneral, bou repo.Boun
 
 						}
 						if s.C[askg].Blocked && s.C[askg].Cur == 1 {
-							errs = append(errs, fmt.Errorf("in store.RegisterBuffer buffer has single element and current counter == 1 and fuse"))
+							errs = append(errs, fmt.Errorf("in store.RegisterBuffer buffer has single element and current counter == 1 and blocked"))
 							repeat = false
 							break
 						}

@@ -4,11 +4,11 @@ import (
 	"io"
 	"net"
 	"os"
+	"postParser/internal/adapters/application"
+	"postParser/internal/logger"
+	"postParser/internal/repo"
 	"strings"
 	"sync"
-	"workspaces/postParser/internal/adapters/application"
-	"workspaces/postParser/internal/logger"
-	"workspaces/postParser/internal/repo"
 )
 
 type TpServer struct {
@@ -33,7 +33,7 @@ func NewTpReceiver(a application.Application) *tpReceiverStruct {
 	if err != nil {
 		logger.L.Error(err)
 	}
-	logger.L.Info("listening on :3000")
+	logger.L.Info("listening localhost:3000")
 
 	s := &TpServer{l: li}
 

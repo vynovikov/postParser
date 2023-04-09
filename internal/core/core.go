@@ -1,8 +1,8 @@
 package core
 
 import (
-	"workspaces/postParser/internal/logger"
-	"workspaces/postParser/internal/repo"
+	"postParser/internal/logger"
+	"postParser/internal/repo"
 
 	"github.com/google/go-cmp/cmp"
 )

@@ -3,15 +3,15 @@ package main
 import (
 	"os"
 	"os/signal"
+	"postParser/internal/adapters/application"
+	"postParser/internal/adapters/driven/rpc"
+	"postParser/internal/adapters/driven/store"
+	"postParser/internal/adapters/driver/tp"
+	"postParser/internal/adapters/driver/tps"
+	"postParser/internal/core"
+	"postParser/internal/logger"
 	"sync"
 	"syscall"
-	"workspaces/postParser/internal/adapters/application"
-	"workspaces/postParser/internal/adapters/driven/rpc"
-	"workspaces/postParser/internal/adapters/driven/store"
-	"workspaces/postParser/internal/adapters/driver/tp"
-	"workspaces/postParser/internal/adapters/driver/tps"
-	"workspaces/postParser/internal/core"
-	"workspaces/postParser/internal/logger"
 )
 
 var (
@@ -19,19 +19,25 @@ var (
 )
 
 func main() {
-
+	//logger.L.Infoln("in main.main NewTransmitter")
 	t := rpc.NewTransmitter(nil)
+	//logger.L.Infoln("in main.main NewCore")
 	c := core.NewCore()
+	//logger.L.Infoln("in main.main NewStore")
 	s := store.NewStore()
 
+	//logger.L.Infoln("in main.main NewAppFull")
 	app, done := application.NewAppFull(c, s, t)
 
 	//logger.L.Infof("main.main app was set to %v\n", app)
 
+	//logger.L.Infoln("in main.main NewTpReceiver")
 	tpR := tp.NewTpReceiver(app)
+	//logger.L.Infoln("in main.main NewTpsReceiver")
 	tpsR := tps.NewTpsReceiver(app)
 
 	go signalListen(tpR, tpsR, app)
+	go app.Do()
 	go tpR.Run()
 	go tpsR.Run()
 

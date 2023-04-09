@@ -1,19 +1,23 @@
-FROM golang:1.20.1-bullseye
+FROM golang:1.20-buster as build
 
 WORKDIR /postParser
 
 COPY . .
 
-EXPOSE 443 3000 3100
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o postParser ./cmd/postParser
 
-RUN go get -d -v ./... \
-		&& go get -v -u golang.org/x/tools//gopls \
-		&& git clone https://github.com/go-delve/delve \
-            && cd delve \
-            && go install github.com/go-delve/delve/cmd/dlv \
-		&& go get -v -u github.com/ramya-rao-a/go-outline \
-		&& go get -v -u github.com/cweill/gotests \
-		&& go get -v -u github.com/haya14busa/goplay \
-		&& go get -v -u github.com/fatih/gomodifytags \
-		&& go get -v -u github.com/josharian/impl \
-		&& go get -v -u github.com/cweill/gotests
+CMD ./postParser
+
+FROM alpine:latest as release
+
+RUN apk --no-cache add ca-certificates && \
+	mkdir /tls
+
+
+COPY --from=build /postParser ./ 
+
+RUN chmod +x ./postParser
+
+ENTRYPOINT [ "./postParser" ]
+
+EXPOSE 443 3000
