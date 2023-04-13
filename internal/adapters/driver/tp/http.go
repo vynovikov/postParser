@@ -58,6 +58,7 @@ func (r *tpReceiverStruct) Run() {
 		}
 		r.wg.Add(1)
 		ts := repo.NewTS()
+		//logger.L.Infof("in tp.Run current time %v, ts: %q\n", time.Now().Format("02.01.2006 15_16_17"), ts)
 		go r.HandleRequest(conn, ts, &r.wg)
 
 	}

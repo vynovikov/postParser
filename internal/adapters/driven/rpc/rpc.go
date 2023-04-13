@@ -26,7 +26,7 @@ var (
 
 type Transmitter interface {
 	Transmit(repo.AppDistributorUnit, *sync.Mutex)
-	Log(string) []error
+	Log(string) error
 }
 
 type TransmitAdapter struct {
@@ -62,7 +62,7 @@ func NewTransmitter(lis *bufconn.Listener) *TransmitAdapter {
 	if err != nil {
 		logger.L.Error(errs.Wrap(err, "rpc.Transmit.grpc.dial"))
 	}
-	connectStringToLogger = "postlogger" + ":" + "3200"
+	connectStringToLogger = loggerHostName + ":" + "3200"
 	connToLogger, err = grpc.Dial(connectStringToLogger, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		logger.L.Error(errs.Wrap(err, "rpc.Transmit.grpc.dial"))
@@ -104,9 +104,7 @@ func (t *TransmitAdapter) Transmit(adu repo.AppDistributorUnit, mu *sync.Mutex) 
 	}
 
 }
-func (t *TransmitAdapter) Log(s string) []error {
-
-	errs := make([]error, 0)
+func (t *TransmitAdapter) Log(s string) error {
 	req := &tologger.LogReq{}
 
 	//logger.L.Infof("in rpc.Log trying to log %q\n", s)
@@ -115,10 +113,10 @@ func (t *TransmitAdapter) Log(s string) []error {
 
 	_, err := t.loggerClient.Log(context.Background(), req)
 	if err != nil {
-		logger.L.Errorf("in rpc.Log error %v\n", err)
-		errs = append(errs, err)
+		//logger.L.Errorf("in rpc.Log error %v\n", err)
+		return err
 	}
-	return errs
+	return nil
 }
 
 // update proto msg to use last flag

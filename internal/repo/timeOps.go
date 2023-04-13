@@ -15,5 +15,5 @@ func NewTS() string {
 
 	randSuffixString := strconv.Itoa(randSuffixInt)
 
-	return t.Format("02.01.2006 15_16_17") + "." + randSuffixString
+	return t.Format("02.01.2006 15_04_05") + "." + randSuffixString
 }
