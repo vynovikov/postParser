@@ -946,6 +946,7 @@ func CompleteAppStoreValue(asv AppStoreValue, d DataPiece, bou Boundary) (AppSto
 			//logger.L.Infoln("in repo.CompleteAppStoreValue no header found")
 			return AppStoreValue{}, err
 		}
+		//if strings.Contains(err.Error(),"is ending part")
 	}
 	ci = bytes.Index(header, []byte("Content-Disposition"))
 	//logger.L.Infof("in repo.CompleteAppStoreValue ci = %d\n", ci)
@@ -967,6 +968,7 @@ func CompleteAppStoreValue(asv AppStoreValue, d DataPiece, bou Boundary) (AppSto
 
 			return asv, nil
 		}
+
 		return asv, err
 	}
 	asv.D.H = append(asv.D.H, header...)
@@ -1177,6 +1179,7 @@ func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) 
 		}
 		sc.From = p.GR
 
+		//logger.L.Infof("in repo.NewStoreChange p.GR[askd][false]: %v\n", p.GR[askd][false])
 		if asv, ok = p.GR[askd][false]; ok {
 
 			if asv.D.FormName == "" {
@@ -1187,10 +1190,22 @@ func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) 
 						!strings.Contains(err.Error(), "is ending part") {
 						return sc, err
 					}
+					if strings.Contains(err.Error(), "is ending part") {
+						asv.E = d.E()
+
+						dr[false] = asv
+						gr[askd.IncPart().F()] = dr
+
+						sc.A = Change
+						sc.To = gr
+
+						return sc, nil
+					}
 
 				}
 			}
 			asv.E = d.E()
+			//logger.L.Infof("in repo.NewStoreChange asv: %q\n", asv)
 			dr[false] = asv
 
 			switch len(p.GR) {
@@ -1200,8 +1215,12 @@ func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) 
 					sc.A = Change
 
 					m3t := p.GR[askd][true]
+					//logger.L.Infof("in repo.NewStoreChange m3t: %v\n", m3t)
+					//if !IsBoundary(m3t.D.H,d.GetBody())
+					//asvv := p.GR[askd][false]
 					asv, err = CompleteAppStoreValue(m3t, d, bou)
 					//logger.L.Infof("in repo.NewStoreChange asv: %q, error: %v", asv, err)
+
 					if err != nil {
 						if strings.Contains(err.Error(), "no header found") { // no new asv
 

@@ -1044,6 +1044,7 @@ func (s *modelsSuite) TestNewStoreChange() {
 								H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r"),
 							},
 							B: BeginningData{Part: 1},
+							E: Probably,
 						},
 						true: {
 							D: Disposition{
@@ -1057,7 +1058,7 @@ func (s *modelsSuite) TestNewStoreChange() {
 			},
 			bou: Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
 			d: &AppPieceUnit{
-				APH: AppPieceHeader{TS: "qqq", Part: 2, B: True, E: Probably}, APB: AppPieceBody{B: []byte("\nContent-Type: text/plain\r\n\r\nazaza")},
+				APH: AppPieceHeader{TS: "qqq", Part: 2, B: True, E: True}, APB: AppPieceBody{B: []byte("\nContent-Type: text/plain\r\n\r\nazaza")},
 			},
 			wantSC: StoreChange{
 				A: Change,
@@ -1068,6 +1069,7 @@ func (s *modelsSuite) TestNewStoreChange() {
 								H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r"),
 							},
 							B: BeginningData{Part: 1},
+							E: Probably,
 						},
 						true: {
 							D: Disposition{
@@ -1087,7 +1089,7 @@ func (s *modelsSuite) TestNewStoreChange() {
 								FileName: "short.txt",
 							},
 							B: BeginningData{Part: 1},
-							E: Probably,
+							E: True,
 						},
 					},
 				},
