@@ -136,8 +136,11 @@ func (a *App) toChanOut(adu repo.AppDistributorUnit) {
 	if a.L != nil {
 		a.L.LogStuff(adu)
 	}
-
-	//logger.L.Infof("in application.toChanOut trying to send adu header %v body %q to chanOut\n", adu.H, adu.B.B)
+	/*
+		if adu.H.S.M.PreAction == repo.Open {
+			logger.L.Infof("in application.toChanOut trying to send adu header %v body %q to chanOut\n", adu.H, adu.B.B)
+		}
+	*/
 	a.A.C.ChanOut <- adu
 	//logger.L.Infof("in application.toChanOut after a.A.C: %v\n", a.A.C)
 
@@ -282,8 +285,10 @@ func NewPieceKeyFromAPU(apu repo.AppPieceUnit) PieceKey {
 
 func (a *App) Handle(d repo.DataPiece, bou repo.Boundary, w *sync.WaitGroup, i int) {
 	//defer w.Done()
-	_, prepErrs, _ := make([]repo.AppDistributorUnit, 0), make([]error, 0), d.Part()
-	//logger.L.Infof("in application.Handle handling p %d\n", p)
+	prepErrs := make([]error, 0)
+	if d.B() == repo.False && d.Part() != 0 {
+		logger.L.Infof("in application.Handle handling d header: %v, body %q\n", d.GetHeader(), d.GetBody(0))
+	}
 	a.toChanLog(fmt.Sprintf("in postparser worker %d invoked application.Handle for dataPiece with header %v, body %q", i, d.GetHeader(), d.GetBody(0)))
 
 	if d.B() == repo.False && d.E() == repo.False { // for unary transmition
@@ -473,6 +478,7 @@ func (a *App) doHandle(d repo.DataPiece, sc repo.StoreChange, adub repo.AppDistr
 		aduh := CalcHeader(d, sc, o)
 		//logger.L.Infof("in application.doHandle for apu with header %v got aduh = %v\n", d.GetHeader(), aduh)
 		adu := repo.NewAppDistributorUnit(aduh, adub)
+
 		a.toChanLog(fmt.Sprintf("in postparser.application.doHandle for apu with header %v got adu header: %v, body: %q", d.GetHeader(), adu.H, adu.B.B))
 		adus = append(adus, adu)
 	}

@@ -1030,6 +1030,69 @@ func (s *modelsSuite) TestNewStoreChange() {
 				},
 			},
 		},
+
+		{
+			name: "Forked askd, OB present, appSub is part of header",
+			p: Presense{
+				ASKG: true,
+				ASKD: true,
+				OB:   true,
+				GR: map[AppStoreKeyDetailed]map[bool]AppStoreValue{
+					{SK: StreamKey{TS: "qqq", Part: 2}, S: false}: {
+						false: {
+							D: Disposition{
+								H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r"),
+							},
+							B: BeginningData{Part: 1},
+						},
+						true: {
+							D: Disposition{
+								H: []byte("\r"),
+							},
+							B: BeginningData{Part: 1},
+							E: Probably,
+						},
+					},
+				},
+			},
+			bou: Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
+			d: &AppPieceUnit{
+				APH: AppPieceHeader{TS: "qqq", Part: 2, B: True, E: Probably}, APB: AppPieceBody{B: []byte("\nContent-Type: text/plain\r\n\r\nazaza")},
+			},
+			wantSC: StoreChange{
+				A: Change,
+				From: map[AppStoreKeyDetailed]map[bool]AppStoreValue{
+					{SK: StreamKey{TS: "qqq", Part: 2}, S: false}: {
+						false: {
+							D: Disposition{
+								H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r"),
+							},
+							B: BeginningData{Part: 1},
+						},
+						true: {
+							D: Disposition{
+								H: []byte("\r"),
+							},
+							B: BeginningData{Part: 1},
+							E: Probably,
+						},
+					},
+				},
+				To: map[AppStoreKeyDetailed]map[bool]AppStoreValue{
+					{SK: StreamKey{TS: "qqq", Part: 3}, S: false}: {
+						false: {
+							D: Disposition{
+								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+								FormName: "alice",
+								FileName: "short.txt",
+							},
+							B: BeginningData{Part: 1},
+							E: Probably,
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, v := range tt {
 		s.Run(v.name, func() {
