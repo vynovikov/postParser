@@ -1,4 +1,22 @@
-# DataPiece
+## Installation
+
+Requirements: Docker and docker compose installed
+- download [docker-compose.yaml](https://github.com/vynovikov/postParser/blob/main/docker-compose.yaml)
+```
+docker-compose up
+```
+
+#### What does postParser do?
+PostParser parses incoming http(https) request, converts its content into convenient form and sends output via gRPC. Second service (postSaver) gets output and stores it on disk as files. Third service (postLogger) gets logs from postParser to fix bugs if any. 
+
+POST request should use **multipart/for-data** content type. Each form may contain text field or file. 
+
+
+## Architecture
+
+PostParser has hexagonal architecture. All its modules are loosely coupled and can be modified easily with no affect on other ones.
+
+## DataPiece
 
 DataPiece is the major object in the context of work. It's a pointer to struct containing byte slice and header. PostParser extracts dataPieces from http (or https) request, handles and sends them via gRPC.
 
