@@ -14,7 +14,7 @@ POST request should use **multipart/for-data** content type. Each form may conta
 
 ## Architecture
 
-PostParser has hexagonal architecture. All its modules are loosely coupled and can be modified easily with no affect on other ones.
+PostParser has hexagonal architecture. All its modules are loosely coupled and can be modified easily with no affect on other ones. 
 
 ## DataPiece
 
