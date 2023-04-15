@@ -1,20 +1,20 @@
 version: '3'
 services:
   postparser:
-    image: vynovikov/postparser:1.0
+    image: vynovikov/postparser:0.1
     ports:
       - 3000:3000
     environment:
       - SAVER_HOSTNAME=postsaver
       - LOGGER_HOSTNAME=postlogger
   postlogger:
-    image: vynovikov/postlogger:1.0
+    image: vynovikov/postlogger:0.1
     environment:
       - HOSTNAME=postlogger
     volumes:
       - "./logs:/logs"
   postsaver:
-    image: vynovikov/postsaver:1.0
+    image: vynovikov/postsaver:0.1
     environment:
       - HOSTNAME=postsaver
     volumes:

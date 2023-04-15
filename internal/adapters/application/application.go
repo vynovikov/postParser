@@ -155,7 +155,7 @@ func (a *App) Work(i int) {
 	logger.L.Infof("in postparser.application.Work worker %d started\n", i)
 
 	for afu := range a.A.C.ChanIn {
-
+		//logger.L.Infoln("slicing part", afu.R.H.Part)
 		if len(afu.R.B.B) == 0 {
 			continue
 		}
@@ -177,8 +177,9 @@ func (a *App) Work(i int) {
 		w.Add(len(m))
 
 		for j := range m {
-
-			//logger.L.Infof("in application.Work starting work under element #%d with header %v, body %q\n", j, m[j].GetHeader(), m[j].GetBody(0))
+			if afu.R.H.Part == 4 || afu.R.H.Part == 5 {
+				logger.L.Infof("in application.Work starting work under element #%d with header %v, body %q\n", j, m[j].GetHeader(), m[j].GetBody(0))
+			}
 			go a.Handle(&m[j], afu.R.H.Bou, w, i)
 		}
 
@@ -286,7 +287,7 @@ func NewPieceKeyFromAPU(apu repo.AppPieceUnit) PieceKey {
 func (a *App) Handle(d repo.DataPiece, bou repo.Boundary, w *sync.WaitGroup, i int) {
 	//defer w.Done()
 	prepErrs := make([]error, 0)
-	if d.B() == repo.False && d.Part() != 0 {
+	if (d.B() == repo.False && d.Part() != 0) || d.Part() == 5 {
 		logger.L.Infof("in application.Handle handling d header: %v, body %q\n", d.GetHeader(), d.GetBody(0))
 	}
 	a.toChanLog(fmt.Sprintf("in postparser worker %d invoked application.Handle for dataPiece with header %v, body %q", i, d.GetHeader(), d.GetBody(0)))
@@ -346,6 +347,11 @@ func (a *App) Handle(d repo.DataPiece, bou repo.Boundary, w *sync.WaitGroup, i i
 	a.A.appRWLock.RLock()
 	presence, err := a.S.Presence(d) //may be changed later
 	a.A.appRWLock.RUnlock()
+	/*
+		if d.B() == repo.False && d.Part() != 0 {
+			logger.L.Infof("in postparser.application.Handle worker %d for dataPiece with header %v, body %q ==> made 1 try presense.ASKG %t, presense.ASKD %t, presense.OB %t\n", i, d.GetHeader(), d.GetBody(0), presence.ASKG, presence.ASKD, presence.OB)
+		}
+	*/
 	a.toChanLog(fmt.Sprintf("in postparser.application.Handle worker %d for dataPiece with header %v, body %q ==> made 1 try presense.ASKG %t, presense.ASKD %t, presense.OB %t", i, d.GetHeader(), d.GetBody(0), presence.ASKG, presence.ASKD, presence.OB))
 	if err != nil {
 		prepErrs = append(prepErrs, err)
@@ -409,6 +415,9 @@ func (a *App) Handle(d repo.DataPiece, bou repo.Boundary, w *sync.WaitGroup, i i
 
 	}
 	sc, scErr := repo.NewStoreChange(d, presence, bou)
+	if d.B() == repo.False && d.Part() != 0 || d.Part() == 5 {
+		logger.L.Infof("in application.Handle worker %d for dataPiece with header %v ==> sc: %v\n", i, d.GetHeader(), sc)
+	}
 	//logger.L.Infof("in application.Handle worker %d for dataPiece with header %v ==> sc: %v\n", i, d.GetHeader(), sc)
 
 	//logger.L.Infof("in application.Handle sc %v, err: %v\n", sc, scErr)
