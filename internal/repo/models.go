@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"postParser/internal/adapters/driven/rpc/tosaver/pb"
+	"postParser/internal/logger"
 	"strings"
 	"sync"
 	"time"
@@ -1184,7 +1185,7 @@ func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) 
 
 			if asv.D.FormName == "" {
 				asv, err = CompleteAppStoreValue(asv, d, bou)
-				//logger.L.Infof("in repo.NewStoreChange asv: %q, error: %v", asv, err)
+				logger.L.Infof("in repo.NewStoreChange asv: %q, error: %v", asv, err)
 				if err != nil {
 					if !strings.Contains(err.Error(), "is not full") &&
 						!strings.Contains(err.Error(), "is ending part") {

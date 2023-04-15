@@ -75,8 +75,9 @@ func (r *tpReceiverStruct) HandleRequest(conn net.Conn, ts string, wg *sync.Wait
 		b, errSecond := repo.AnalyzeBits(conn, 1024, p, header)
 
 		u := repo.NewReceiverUnit(h, b)
-		//logger.L.Infof("in tp.HandleRequest unit header %v, body: %q\n", u.H, u.B.B)
-
+		if p == 4 || p == 5 {
+			logger.L.Infof("in tp.HandleRequest unit header %v, body: %q, errFirst %v, errSecond %v\n", u.H, u.B.B, errFirst, errSecond)
+		}
 		if errFirst != nil {
 
 			if errFirst == io.EOF || errFirst == io.ErrUnexpectedEOF || os.IsTimeout(errFirst) {
