@@ -177,9 +177,6 @@ func (a *App) Work(i int) {
 		w.Add(len(m))
 
 		for j := range m {
-			if afu.R.H.Part == 4 || afu.R.H.Part == 5 {
-				logger.L.Infof("in application.Work starting work under element #%d with header %v, body %q\n", j, m[j].GetHeader(), m[j].GetBody(0))
-			}
 			go a.Handle(&m[j], afu.R.H.Bou, w, i)
 		}
 
@@ -287,9 +284,6 @@ func NewPieceKeyFromAPU(apu repo.AppPieceUnit) PieceKey {
 func (a *App) Handle(d repo.DataPiece, bou repo.Boundary, w *sync.WaitGroup, i int) {
 	//defer w.Done()
 	prepErrs := make([]error, 0)
-	if (d.B() == repo.False && d.Part() != 0) || d.Part() == 5 {
-		logger.L.Infof("in application.Handle handling d header: %v, body %q\n", d.GetHeader(), d.GetBody(0))
-	}
 	a.toChanLog(fmt.Sprintf("in postparser worker %d invoked application.Handle for dataPiece with header %v, body %q", i, d.GetHeader(), d.GetBody(0)))
 
 	if d.B() == repo.False && d.E() == repo.False { // for unary transmition
@@ -415,9 +409,6 @@ func (a *App) Handle(d repo.DataPiece, bou repo.Boundary, w *sync.WaitGroup, i i
 
 	}
 	sc, scErr := repo.NewStoreChange(d, presence, bou)
-	if d.B() == repo.False && d.Part() != 0 || d.Part() == 5 {
-		logger.L.Infof("in application.Handle worker %d for dataPiece with header %v ==> sc: %v\n", i, d.GetHeader(), sc)
-	}
 	//logger.L.Infof("in application.Handle worker %d for dataPiece with header %v ==> sc: %v\n", i, d.GetHeader(), sc)
 
 	//logger.L.Infof("in application.Handle sc %v, err: %v\n", sc, scErr)
@@ -450,11 +441,6 @@ func (a *App) Handle(d repo.DataPiece, bou repo.Boundary, w *sync.WaitGroup, i i
 // returns adus and errors based on dataPiece and store states
 func (a *App) doHandle(d repo.DataPiece, sc repo.StoreChange, adub repo.AppDistributorBody, header []byte, bou repo.Boundary, prepErrs []error) ([]repo.AppDistributorUnit, []error) {
 	var decrementErr error
-	/*
-		if (d.B() == repo.True && d.Part() == 1) || (d.B() == repo.True && d.Part() == 2) {
-			logger.L.Infof("application.doHandle invoked for apu with header %v, body %q, sc.A: %d\n", d.GetHeader(), d.GetBody(0), sc.A)
-		}
-	*/
 	adus, errs, o := make([]repo.AppDistributorUnit, 0), prepErrs, repo.Unordered
 	//p := d.Part()
 
