@@ -2,7 +2,7 @@
 
 Requirements: Docker and docker compose installed
 - download [docker-compose.yaml](https://github.com/vynovikov/postParser/blob/main/docker-compose.yaml)
-- ``docker-compose up``
+-  run ``docker-compose up``
 
 #### What does postParser do?
 PostParser parses incoming http(https) request, converts it into convenient form and sends output via gRPC. Second service ([postSaver](https://github.com/vynovikov/postSaver)) gets output and stores it on disk as files. Third service ([postLogger](https://github.com/vynovikov/postLogger)) gets logs from postParser and saves the on disk similarly. 
@@ -13,6 +13,16 @@ POST request should use **multipart/for-data** content type. Each form may conta
 ## Architecture
 
 PostParser has hexagonal architecture. All its modules are loosely coupled and can be modified easily with no affect on other ones. 
+
+![postParser](forManual/arch.png)
+
+**Receivers** are listening ports 3000 and 443, catching incoming http and https requests, converting them and put into chanIn channel.
+
+**Application** is pool of workers which is ranging over chanIn. After receiving data from chanIn, worker converts it into form necessary for the transmitter and put result into chanOut and logs into chanLog. Application provides worker synchronization and data ordering also.
+
+**Transmitter** range over chanOut and chanLog, and transmit data to [postSaver](https://github.com/vynovikov/postSaver) and [postLogger](https://github.com/vynovikov/postLogger) respectively.
+
+
 
 ## DataPiece
 
