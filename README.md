@@ -18,7 +18,7 @@ PostParser has hexagonal architecture. All its modules are loosely coupled and c
 
 **Receivers** are listening ports 3000 and 443, catching incoming http and https requests, converting them and put into chanIn channel.
 
-**Application** is pool of workers which is ranging over chanIn. After receiving data from chanIn, worker converts it into form necessary for the transmitter and put result into chanOut and logs into chanLog. Application provides worker synchronization and data ordering also.+-
+**Application** is pool of workers which is ranging over chanIn. After receiving data from chanIn, worker converts it into form necessary for the transmitter and put result into chanOut and logs into chanLog. Application provides worker synchronization and data ordering also.
 
 ![work](forManual/work.png)
 
