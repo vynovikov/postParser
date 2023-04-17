@@ -37,7 +37,7 @@ PostParser has hexagonal architecture. All its modules are loosely coupled and c
 >**Counter**
 >Stores counters for dataPiece groups and flags for marking output as first, last, etc.
 
-**Application** is designed as pool of workers. Workera are ranging over chanIn. When receiving data, worker converts it into form necessary for the transmitter and put result into chanOut and logs into chanLog. Application provides worker synchronization and data ordering also.
+**Application** is designed as pool of workers. Workers are ranging over chanIn. When receiving data, worker converts it into form necessary for the transmitter and put result into chanOut and logs into chanLog. Application provides worker synchronization and data ordering also.
 
 Application uses several methods for dataPiece handling. Some of these methods are interacting with store maps. They are executed by workers in concurrent way. Execution needs to be synchronized to avoid data race:
 
@@ -48,7 +48,7 @@ sync.RWMutex is used for synchronization
 ## Graceful shutdown
 
 After receiving interrupt signal, application first finishes its current work , then terminates.
-![](forManual/3.gif)
+![](forManual/graceful.gif)
 
 ​																													\* process durations are shown schematically
 
