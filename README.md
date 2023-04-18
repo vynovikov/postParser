@@ -11,9 +11,7 @@ POST request should use **multipart/for-data** content type. Each form may conta
 
 #### Demonstration
 <figure class="video_container">
-<video controls="true" allowfullscreen="true">
-    <source src="forManual/edited.mp4" type="video/mp4">
-  </video>
+<iframe src="forManual/edited.mp4" frameborder="0" allowfullscreen="true"> </iframe>
 </figure>
 
 
