@@ -11,11 +11,6 @@ POST request should use **multipart/for-data** content type. Each form may conta
 
 #### Demonstration
 
-<figure class="video_container">
-<iframe src="forManual/edited.mp4" frameborder="0" allowfullscreen="true"> </iframe>
-</figure>
-
-
 ## Architecture
 
 PostParser has hexagonal architecture. All its modules are loosely coupled and can be modified easily with no affect on other ones. 
