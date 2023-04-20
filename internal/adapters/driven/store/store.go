@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"postParser/internal/repo"
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/vynovikov/postParser/internal/repo"
 )
 
 type StoreStruct struct {

@@ -2,10 +2,11 @@ package application
 
 import (
 	"errors"
-	"postParser/internal/adapters/driven/store"
-	"postParser/internal/repo"
 	"sync"
 	"testing"
+
+	"github.com/vynovikov/postParser/internal/adapters/driven/store"
+	"github.com/vynovikov/postParser/internal/repo"
 
 	"github.com/stretchr/testify/suite"
 )

@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
-	tosaver "postParser/internal/adapters/driven/rpc/tosaver/pb"
 	"sort"
 	"sync"
 
-	tologger "postParser/internal/adapters/driven/rpc/tologger/pb"
-	"postParser/internal/logger"
-	"postParser/internal/repo"
+	tosaver "github.com/vynovikov/postParser/internal/adapters/driven/rpc/tosaver/pb"
+
+	tologger "github.com/vynovikov/postParser/internal/adapters/driven/rpc/tologger/pb"
+	"github.com/vynovikov/postParser/internal/logger"
+	"github.com/vynovikov/postParser/internal/repo"
 
 	errs "github.com/pkg/errors"
 	"google.golang.org/grpc"

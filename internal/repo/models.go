@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"postParser/internal/adapters/driven/rpc/tosaver/pb"
-	"postParser/internal/logger"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vynovikov/postParser/internal/adapters/driven/rpc/tosaver/pb"
+	"github.com/vynovikov/postParser/internal/logger"
 )
 
 type Unit struct {

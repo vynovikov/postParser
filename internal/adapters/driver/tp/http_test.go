@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"postParser/internal/adapters/application"
-	"postParser/internal/repo"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/vynovikov/postParser/internal/adapters/application"
+	"github.com/vynovikov/postParser/internal/repo"
 
 	"github.com/stretchr/testify/suite"
 )

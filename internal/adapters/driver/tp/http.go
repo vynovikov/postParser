@@ -4,11 +4,12 @@ import (
 	"io"
 	"net"
 	"os"
-	"postParser/internal/adapters/application"
-	"postParser/internal/logger"
-	"postParser/internal/repo"
 	"strings"
 	"sync"
+
+	"github.com/vynovikov/postParser/internal/adapters/application"
+	"github.com/vynovikov/postParser/internal/logger"
+	"github.com/vynovikov/postParser/internal/repo"
 )
 
 type TpServer struct {

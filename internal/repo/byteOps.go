@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"postParser/internal/logger"
 	"regexp"
 	"strings"
 	"unicode"
+
+	"github.com/vynovikov/postParser/internal/logger"
 )
 
 const (

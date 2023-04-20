@@ -3,9 +3,10 @@ package rpc
 import (
 	"errors"
 	"fmt"
-	"postParser/internal/adapters/driven/rpc/tosaver/pb"
-	"postParser/internal/repo"
 	"testing"
+
+	"github.com/vynovikov/postParser/internal/adapters/driven/rpc/tosaver/pb"
+	"github.com/vynovikov/postParser/internal/repo"
 
 	"github.com/stretchr/testify/suite"
 )

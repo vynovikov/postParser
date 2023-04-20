@@ -2,13 +2,14 @@ package application
 
 import (
 	"fmt"
-	"postParser/internal/adapters/driven/rpc"
-	"postParser/internal/adapters/driven/store"
-	"postParser/internal/core"
-	"postParser/internal/logger"
-	"postParser/internal/repo"
 	"strings"
 	"sync"
+
+	"github.com/vynovikov/postParser/internal/adapters/driven/rpc"
+	"github.com/vynovikov/postParser/internal/adapters/driven/store"
+	"github.com/vynovikov/postParser/internal/core"
+	"github.com/vynovikov/postParser/internal/logger"
+	"github.com/vynovikov/postParser/internal/repo"
 
 	"github.com/google/go-cmp/cmp"
 )

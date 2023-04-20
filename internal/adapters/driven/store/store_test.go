@@ -2,8 +2,9 @@ package store
 
 import (
 	"errors"
-	"postParser/internal/repo"
 	"testing"
+
+	"github.com/vynovikov/postParser/internal/repo"
 
 	"github.com/stretchr/testify/suite"
 )
