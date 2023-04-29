@@ -5,14 +5,13 @@ import (
 	"regexp"
 )
 
-// Returns true if byte slise is part of Content-Disposition header line part cut from right
+// IsCDRight returns true if b is part of Content-Disposition header line cut from right.
+// Tested in regexpOps_test.go
 func IsCDRight(b []byte) bool {
 	CD := []byte("Content-Disposition: form-data; name=\"")
 	if len(b) <= len(CD) && bytes.Contains(CD, b) {
-		//logger.L.Infof("repo.IsCDRight bytes.Contains(CD, b)\n")
 		return true
 	}
-	//logger.L.Infof("in repo.IsCDRight b[len(CD):]: %q\n", b[len(CD):])
 	if len(b) > len(CD) {
 		if bytes.Contains(b, CD) {
 
@@ -45,6 +44,8 @@ func IsCDRight(b []byte) bool {
 	}
 	return false
 }
+
+// Sufficiency determines whether b is header for string data or for file data
 func Sufficiency(b []byte) sufficiency {
 	r0 := regexp.MustCompile(`^Content-Disposition: form-data; name="[a-zA-zа-яА-Я0-9_.-:@#%^&\$\+\!\*\(\[\{\)\]\}]+"$`)
 	r1 := regexp.MustCompile(`^Content-Disposition: form-data; name="[a-zA-zа-яА-Я0-9_.-:@#%^&\$\+\!\*\(\[\{\)\]\}]+"; filename="[a-zA-zа-яА-Я0-9_.-:@#%^&\$\+\!\*\(\[\{\)\]\}]+"$`)
@@ -58,13 +59,9 @@ func Sufficiency(b []byte) sufficiency {
 
 	return Incomplete
 }
-func IsCDCompleted(b []byte) bool {
-	r0 := regexp.MustCompile(`^Content-Disposition: form-data; name="[a-zA-zа-яА-Я0-9_.-:@#%^&\$\+\!\*\(\[\{\)\]\}]+"; filename="[a-zA-zа-яА-Я0-9_.-:@#%^&\$\+\!\*\(\[\{\)\]\}]+"$`)
 
-	return !r0.Match(b)
-}
-
-// Returns true if byte slise is part of Content-Disposition header line part cut from left
+// IsCDLeft returns true if b is part of Content-Disposition header line cut from left.
+// Tested in regexpOps_test.go
 func IsCDLeft(b []byte) bool {
 	CD := []byte("Content-Disposition: form-data; name=")
 
@@ -78,7 +75,6 @@ func IsCDLeft(b []byte) bool {
 	case 2:
 		CDF := []byte("; filename=")
 		pre := b[:bytes.Index(b, []byte("\""))]
-		//logger.L.Infof("in repo.IsCDLeft b: %q, pre: %q, b[len(pre):]:%q \n", b, pre, b[len(pre):])
 		r2 := regexp.MustCompile(`^"[a-zA-zа-яА-Я0-9_.-:@#%^&\$\+\!\*\(\[\{\)\]\}]+"$`)
 
 		return (EndingOf(CD, pre) || EndingOf(CDF, pre)) && r2.Match(b[len(pre):])
@@ -93,7 +89,6 @@ func IsCDLeft(b []byte) bool {
 		}
 		return r30.Match(b)
 	case 4:
-		//logger.L.Infof("in repo.IsCDLeft b: %q\n", b)
 		colonIndex := bytes.Index(b, []byte("\""))
 		r4 := regexp.MustCompile(`"[a-zA-zа-яА-Я0-9_.-:@#%^&\$\+\!\*\(\[\{\)\]\}]+"; filename="[a-zA-zа-яА-Я0-9_.-:@#%^&\$\+\!\*\(\[\{\)\]\}]+"$`)
 
@@ -106,7 +101,8 @@ func IsCDLeft(b []byte) bool {
 	return false
 }
 
-// Returns true if byte slise is part of Content-Type header line part cut from right
+// IsCTRight returns true if b is part of Content-Type header line cut from right.
+// Tested in regexpOps_test.go
 func IsCTRight(b []byte) bool {
 
 	CT := []byte("Content-Type:")
@@ -125,7 +121,8 @@ func IsCTRight(b []byte) bool {
 
 }
 
-// Returns true if byte slise is part of Content-Type header line part cut from left
+// IsCTLeft returns true if b is part of Content-Type header line cut from left.
+// Tested in regexpOps_test.go
 func IsCTLeft(b []byte) bool {
 
 	CT := []byte("Content-Type:")
@@ -142,14 +139,10 @@ func IsCTLeft(b []byte) bool {
 	return EndingOf(CT, b[:spaceIndex]) && r0.Match(b[spaceIndex+1:])
 }
 
+// IsCTFull returns true if b in Content-Type header line.
+// Tested in regexpOps_test.go
 func IsCTFull(b []byte) bool {
 	r0 := regexp.MustCompile(`^Content-Type: [a-zA-zа-яА-Я0-9_.-:@#%^&\$\+\!\*\(\[\{\)\]\}]+$`)
 
 	return r0.Match(b)
-}
-
-func IsLastBoundaryRegexp(b []byte, bou Boundary) bool {
-	boundaryCore := GenBoundary(bou)
-	r0 := regexp.MustCompile(`^[a-zA-z0-9_.%^&\$\+\!\*]*\/?[a-zA-z0-9_.%^&\$\+\!\*]+\r\n$`)
-	return BeginningEqual(b, boundaryCore) && r0.Match(b[len(boundaryCore):])
 }

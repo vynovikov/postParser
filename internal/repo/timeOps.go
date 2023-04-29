@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// NewTS generates pseudo-random string based on current time
 func NewTS() string {
 	t := time.Now()
 

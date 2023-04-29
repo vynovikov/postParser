@@ -4,8 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/vynovikov/postParser/internal/logger"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/suite"
 )
@@ -18,7 +16,7 @@ func TestByteOps(t *testing.T) {
 	suite.Run(t, new(byteOpsSuite))
 }
 
-func (s *byteOpsSuite) TestLineEndPosLimit() {
+func (s *byteOpsSuite) TestLineRightEndIndexLimit() {
 	bs := []byte("012345" + Sep)
 
 	p := LineRightEndIndexLimit(bs, 0, 10)
@@ -32,37 +30,6 @@ func (s *byteOpsSuite) TestReverse() {
 	bbs := Reverse(bs)
 
 	s.Equal([]byte("543210"), bbs)
-}
-
-func (s *byteOpsSuite) TestLineLeftLimit() {
-	tt := []struct {
-		name      string
-		bs        []byte
-		fromIndex int
-		limit     int
-		want      []byte
-	}{
-		{
-			name:      "happy Sep meet",
-			bs:        []byte("11111" + Sep + "22222" + Sep + "3333"),
-			fromIndex: 12,
-			limit:     10,
-			want:      []byte("22222"),
-		},
-		{
-			name:      "happy zero index met",
-			bs:        []byte("11111" + Sep + "22222" + Sep + "3333"),
-			fromIndex: 4,
-			limit:     10,
-			want:      []byte("11111"),
-		},
-	}
-
-	for _, v := range tt {
-		got := LineLeftLimit(v.bs, v.fromIndex, v.limit)
-		logger.L.Infof("in repo.TestLineLeftLimit got: %q", got)
-		s.Equal(v.want, got)
-	}
 }
 
 func (s *byteOpsSuite) TestFindBoundary() {
@@ -79,22 +46,6 @@ func (s *byteOpsSuite) TestGenBoundary() {
 	boundaryCalced := GenBoundary(boundaryVoc)
 
 	s.Equal([]byte("bPrefix"+"bRoot"), boundaryCalced)
-}
-
-/*
-	func (s *byteOpsSuite) TestLineStartPosLimit() {
-		bs := []byte("a12345" + Sep + "b12345" + Sep)
-		p := LineStartPosLimit(bs, 10, len(bs))
-
-		s.Equal(8, p)
-		s.Equal(string(bs[p]), "b")
-	}
-*/
-func (s *byteOpsSuite) TestPartlyBoundaryLen() {
-	bs := []byte("a12345" + Sep + "b12345" + Sep + "bPrefix" + "bRo")
-	b := []byte("bPrefixbRoot")
-
-	s.Equal(10, GetBoundaryFirstPart(bs, b))
 }
 
 func (s *byteOpsSuite) TestSlicer() {
@@ -319,37 +270,12 @@ func (s *byteOpsSuite) TestSlicer() {
 	for _, v := range tt {
 		s.Run(v.name, func() {
 			b, m, e := Slicer(v.bs, v.bou)
-
-			//logger.L.Infof("in repo.TestSlicer b header %v body %q\n", b.APH, b.APB.B)
-			/*
-				for i := range m {
-					logger.L.Infof("in repo.TestSlicer m header %v body %q\n", m[i].APH, m[i].APB.B)
-				}
-			*/
-			//	logger.L.Infof("in repo.TestSlicer e body = %q\n", e.B)
-
 			s.Equal(v.wantedB, b)
 			s.Equal(v.wantedM, m)
 			s.Equal(v.wantedE, e)
 
 		})
 	}
-}
-
-func (s *byteOpsSuite) TestSliceParser() {
-	piece1 := AppPieceUnit{APH: AppPieceHeader{B: False, E: True}, APB: AppPieceBody{B: []byte("bPrefix" + "bRo")}}
-	/*
-		piece2 := []AppPieceUnit{
-			{APH: AppPieceHeader{B: false, E: false}, APB: AppPieceBody{B: []byte("bPrefix" + "bRoot" + Sep + "b12345")}},
-			{APH: AppPieceHeader{B: false, E: false}, APB: AppPieceBody{B: []byte("bPrefix" + "bRoot" + Sep + "c12345")}},
-		}
-	*/
-	boundary := Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")}
-	//piece2 = append(piece2, piece1)
-
-	SliceParser(piece1, boundary)
-
-	s.True(true)
 }
 
 func (s *byteOpsSuite) TestSingleLineRightTrimmed() {
@@ -432,12 +358,6 @@ func (s *byteOpsSuite) TestIsPartlyBoundaryRight() {
 	s.True(IsPartlyBoundaryRight(bs, boundary))
 }
 
-func (s *byteOpsSuite) TestIsPrintable() {
-	bs := []byte("Root \"")
-
-	s.True(IsPrintable(bs))
-}
-
 func (s *byteOpsSuite) TestNoDigits() {
 	tt := []struct {
 		name string
@@ -493,83 +413,6 @@ func (s *byteOpsSuite) TestAllPrintalbe() {
 		})
 	}
 }
-
-/*
-	func (s *byteOpsSuite) TestGetLinesRight() {
-		tt := []struct {
-			name string
-			bs   []byte
-			voc  Vocabulaty
-			want [][]byte
-		}{
-			{
-				name: "happy first line separated",
-				bs:   []byte("oot" + Sep + "Content-Disposition: form-data; name=\"david\"; filename=\"digits.txt\"" + Sep + "Content-Type: text/plain" + Sep + "111111111"),
-				voc:  Vocabulaty{Boundary: Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")}, CType: "Content-Type: "},
-				want: [][]byte{
-					[]byte("oot"),
-					[]byte("Content-Disposition: form-data; name=\"david\"; filename=\"digits.txt\""),
-					[]byte("Content-Type: text/plain"),
-				},
-			},
-			{
-				name: "happy second line separated",
-				bs:   []byte("ent-Disposition: form-data; name=\"david\"; filename=\"digits.txt\"" + Sep + "Content-Type: text/plain" + Sep + "111111111"),
-				voc:  Vocabulaty{Boundary: Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")}, CType: "Content-Type: "},
-				want: [][]byte{
-					[]byte("ent-Disposition: form-data; name=\"david\"; filename=\"digits.txt\""),
-					[]byte("Content-Type: text/plain"),
-				},
-			},
-			{
-				name: "happy third line separated",
-				bs:   []byte("ype: text/plain" + Sep + "aaaaaaaaaaaaa" + Sep + "2222222222222"),
-				voc:  Vocabulaty{Boundary: Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")}, CType: "Content-Type: "},
-				want: [][]byte{
-					[]byte("ype: text/plain"),
-				},
-			},
-			{
-				name: "happy separator before 1 line",
-				bs:   []byte("\r\n" + "bPrefix" + "bRoot" + Sep + "Content-Disposition: form-data; name=\"david\"; filename=\"digits.txt\"" + Sep + "Content-Type: text/plain" + Sep + "111111111"),
-				voc:  Vocabulaty{Boundary: Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")}, CType: "Content-Type: "},
-				want: [][]byte{
-					[]byte("bPrefix" + "bRoot"),
-					[]byte("Content-Disposition: form-data; name=\"david\"; filename=\"digits.txt\""),
-					[]byte("Content-Type: text/plain"),
-				},
-			},
-			{
-				name: "happy separator after 1 line",
-				bs:   []byte("\n" + "Content-Disposition: form-data; name=\"david\"; filename=\"digits.txt\"" + Sep + "Content-Type: text/plain" + Sep + "111111111"),
-				voc:  Vocabulaty{Boundary: Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")}, CType: "Content-Type: "},
-				want: [][]byte{
-					[]byte("Content-Disposition: form-data; name=\"david\"; filename=\"digits.txt\""),
-					[]byte("Content-Type: text/plain"),
-				},
-			},
-			{
-				name: "happy separator after 2 line",
-				bs:   []byte("\n" + "Content-Type: text/plain" + Sep + "111111111"),
-				voc:  Vocabulaty{Boundary: Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")}, CType: "Content-Type: "},
-				want: [][]byte{
-					[]byte("Content-Type: text/plain"),
-				},
-			},
-		}
-		for _, tc := range tt {
-			s.Run(tc.name, func() {
-				got, err := GetLinesRight(tc.bs, MaxHeaderLimit, tc.voc)
-				logger.L.Infof("in repo.TestGetLinesRight lines: %q\n", got)
-				if err != nil {
-					logger.L.Infof("in repo.TestGetLinesRight err: %v\n", err)
-				}
-
-				s.Equal(tc.want, got)
-			})
-		}
-	}
-*/
 func (s *byteOpsSuite) TestCurrentLineFirstPrintIndexLeft() {
 	tt := []struct {
 		name      string
@@ -796,55 +639,6 @@ func (s *byteOpsSuite) TestGetLinesLeft() {
 		})
 	}
 }
-
-/*
-	func (s *byteOpsSuite) TestGetCurrentLineRight() {
-		tt := []struct {
-			name      string
-			bs        []byte
-			fromIndex int
-			limit     int
-			wantLine  []byte
-			wantError error
-		}{
-			{
-				name:      "happy",
-				bs:        []byte("aaaaaaaaaaa\r"),
-				fromIndex: 0,
-				limit:     MaxLineLimit,
-				wantLine:  []byte("aaaaaaaaaaa"),
-				wantError: nil,
-			},
-
-			{
-				name:      "happy short limit",
-				bs:        []byte("aaaaaaaaaaa\r"),
-				fromIndex: 0,
-				limit:     5,
-				wantLine:  []byte("aaaaa"),
-				wantError: errors.New("line limit exceeded. No separator met"),
-			},
-
-			{
-				name:      "ubhappy EOF met",
-				bs:        []byte("aaaaaaa"),
-				fromIndex: 0,
-				limit:     MaxLineLimit,
-				wantLine:  []byte("aaaaaaa"),
-				wantError: errors.New("body end reached. No separator met"),
-			},
-		}
-		for _, v := range tt {
-			s.Run(v.name, func() {
-				line, err := GetCurrentLineRight(v.bs, v.fromIndex, v.limit)
-				if err != nil {
-					s.Equal(v.wantError, err)
-				}
-				s.Equal(v.wantLine, line)
-			})
-		}
-	}
-*/
 func (s *byteOpsSuite) TestGetLinesRightMiddle() {
 	tt := []struct {
 		name      string
@@ -1118,211 +912,6 @@ func (s *byteOpsSuite) TestPartlyBoundaryRight() {
 	}
 }
 
-/*
-func (s *byteOpsSuite) TestGetLinesMiddle() {
-	tt := []struct {
-		name  string
-		bs    []byte
-		limit int
-		voc   Vocabulaty
-		want  [][]byte
-	}{
-		{
-			name: "happy 2 line header",
-			bs: []byte("Content-Disposition: form-data; name=\"claire\"; filename=\"digits.txt\"" + Sep + "Content-Type: text/plain" +
-				Sep + "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111" +
-				Sep + "2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222"),
-			limit: MaxHeaderLimit,
-			voc:   Vocabulaty{},
-			want: [][]byte{
-				[]byte("Content-Disposition: form-data; name=\"claire\"; filename=\"digits.txt\""),
-				[]byte("Content-Type: text/plain"),
-			},
-		},
-		{
-			name: "happy 1 line header",
-			bs: []byte("Content-Disposition: form-data; name=\"alice\"" +
-				Sep + "Who the hell is Alice?"),
-			limit: MaxHeaderLimit,
-			voc:   Vocabulaty{},
-			want: [][]byte{
-				[]byte("Content-Disposition: form-data; name=\"alice\""),
-			},
-		},
-	}
-	for _, v := range tt {
-		s.Run(v.name, func() {
-			got, err := GetLinesMiddle(v.bs, v.limit, v.voc)
-			logger.L.Infof("in repo.TestGetLinesMiddle got %q\n", got)
-			s.NoError(err)
-			s.Equal(v.want, got)
-		})
-	}
-}
-
-
-func (s *byteOpsSuite) TestCurrentLineFirstPrintIndexRight() {
-	tt := []struct {
-		name  string
-		bs    []byte
-		limit int
-		want  int
-	}{
-		{
-			name: "panic 1",
-			bs:   []byte("\r\n"),
-		},
-	}
-}
-*/
-
-func (s *byteOpsSuite) TestLastBoundary() {
-	tt := []struct {
-		name     string
-		bs       []byte
-		boundary []byte
-		want     bool
-	}{
-		{
-			name:     "last",
-			bs:       []byte("bPrefix" + "bRoot" + "bSuffix" + Sep),
-			boundary: []byte("bPrefix" + "bRoot"),
-			want:     true,
-		},
-		{
-			name:     "not last",
-			bs:       []byte("bPrefix" + "bRoot" + Sep + "22222222222222"),
-			boundary: []byte("bPrefix" + "bRoot"),
-			want:     false,
-		},
-	}
-
-	for _, v := range tt {
-		s.Run(v.name, func() {
-			got := LastBoundary(v.bs, v.boundary)
-			s.Equal(v.want, got)
-		})
-	}
-
-}
-
-func (s *byteOpsSuite) TestGetLineRight() {
-	tt := []struct {
-		name      string
-		bs        []byte
-		fromIndex int
-		limit     int
-		wantValue []byte
-		wantError error
-	}{
-		{
-			name:      "happy CR met",
-			bs:        []byte("12345E" + Sep),
-			fromIndex: 0,
-			limit:     20,
-			wantValue: []byte("12345E"),
-			wantError: nil,
-		},
-
-		{
-			name:      "unhappy 1 line limit exceeded",
-			bs:        []byte("12345E" + Sep),
-			fromIndex: 0,
-			limit:     3,
-			wantValue: []byte("123"),
-			wantError: errors.New("in repo.GetLineRight limit exceeded. No separator found"),
-		},
-		{
-			name:      "unhappy 1 line EOF reached",
-			bs:        []byte("12345E"),
-			fromIndex: 0,
-			limit:     10,
-			wantValue: []byte("12345E"),
-			wantError: errors.New("in repo.GetLineRight EOF reached. No separator found"),
-		},
-	}
-	for _, v := range tt {
-		s.Run(v.name, func() {
-			got, err := GetLineRight(v.bs, v.fromIndex, v.limit)
-			s.Equal(v.wantValue, got)
-			s.Equal(v.wantError, err)
-		})
-	}
-}
-
-func (s *byteOpsSuite) TestGetLinerRight1() {
-	tt := []struct {
-		name      string
-		bs        []byte
-		fromIndex int
-		limit     int
-		wantValue [][]byte
-		wantError error
-	}{
-		{
-			name:      "happy 1 line CR met",
-			bs:        []byte("Content-Disposition" + Sep),
-			fromIndex: 0,
-			limit:     20,
-			wantValue: [][]byte{
-				[]byte("Content-Disposition"),
-			},
-			wantError: nil,
-		},
-		{
-			name:      "happy 2 line CR met",
-			bs:        []byte("Content-Disposition" + Sep + "Content-Type" + Sep + "111111111111" + Sep + "2222222222"),
-			fromIndex: 0,
-			limit:     20,
-			wantValue: [][]byte{
-				[]byte("Content-Disposition"),
-				[]byte("Content-Type"),
-			},
-			wantError: nil,
-		},
-		{
-			name:      "happy first line EOF met",
-			bs:        []byte("Content-Dispos"),
-			fromIndex: 0,
-			limit:     20,
-			wantValue: [][]byte{
-				[]byte("Content-Dispos"),
-			},
-			wantError: errors.New("in repo.GetLineRight EOF reached. No separator found"),
-		},
-		{
-			name:      "happy second line EOF met",
-			bs:        []byte("Content-Disposition" + Sep + "Content-Ty"),
-			fromIndex: 0,
-			limit:     20,
-			wantValue: [][]byte{
-				[]byte("Content-Disposition"),
-				[]byte("Content-Ty"),
-			},
-			wantError: errors.New("in repo.GetLineRight EOF reached. No separator found"),
-		},
-		{
-			name:      "happy second line EOF met",
-			bs:        []byte("Content-Disposition" + Sep + "Content-Ty"),
-			fromIndex: 0,
-			limit:     20,
-			wantValue: [][]byte{
-				[]byte("Content-Disposition"),
-				[]byte("Content-Ty"),
-			},
-			wantError: errors.New("in repo.GetLineRight EOF reached. No separator found"),
-		},
-	}
-	for _, v := range tt {
-		s.Run(v.name, func() {
-			got, err := GetLinesRight1(v.bs, v.fromIndex, v.limit)
-			//logger.L.Infof("in repo.GetLinerRight1 got: %q, err: %v\n", got, err)
-			s.Equal(v.wantValue, got)
-			s.Equal(v.wantError, err)
-		})
-	}
-}
-
 func (s *byteOpsSuite) TestLineRightLimit() {
 
 	tt := []struct {
@@ -1350,89 +939,10 @@ func (s *byteOpsSuite) TestLineRightLimit() {
 	for _, v := range tt {
 		s.Run(v.name, func() {
 			l := LineRightLimit(v.bs, v.fromIndex, v.limit)
-			logger.L.Infof("in repo.TestLineRightLimit len(l) = %d\n", len(l))
 			s.Equal(v.want, l)
 		})
 	}
 
-}
-
-func (s *byteOpsSuite) TestGetBoundaryLastPart() {
-	tt := []struct {
-		name      string
-		bs        []byte
-		boundary  []byte
-		fromIndex int
-		wantValue []byte
-	}{
-		{
-			name:      "happy no boundary",
-			bs:        []byte("111111111111" + Sep + "222222222222"),
-			boundary:  []byte("bPrefix" + "bRoot"),
-			fromIndex: 0,
-			wantValue: nil,
-		},
-
-		{
-			name:      "happy boundary part",
-			bs:        []byte("fixbRoot" + Sep + "111111111111" + Sep + "222222222222"),
-			boundary:  []byte("bPrefix" + "bRoot"),
-			fromIndex: 0,
-			wantValue: []byte("fixbRoot"),
-		},
-		{
-			name:      "unhappy limit exceeded",
-			bs:        []byte("fixbRoot00000000000000000000000000" + "111111111111" + Sep + "222222222222"),
-			boundary:  []byte("bPrefix" + "bRoot"),
-			fromIndex: 0,
-			wantValue: nil,
-		},
-	}
-	for _, v := range tt {
-		s.Run(v.name, func() {
-			b := BoundaryLastPart(v.bs, v.boundary, v.fromIndex)
-			s.Equal(v.wantValue, b)
-		})
-	}
-}
-
-func (s *byteOpsSuite) TestBoundaryFirstPart() {
-	tt := []struct {
-		name      string
-		bs        []byte
-		boundary  []byte
-		fromIndex int
-		wantValue []byte
-	}{
-		{
-			name:      "happy no boundary",
-			bs:        []byte("111111111111" + Sep + "222222222222"),
-			boundary:  []byte("bPrefix" + "bRoot"),
-			fromIndex: 6,
-			wantValue: nil,
-		},
-
-		{
-			name:      "happy boundary part",
-			bs:        []byte("111111111111" + Sep + "222222222222" + Sep + "bPrefixbRo"),
-			boundary:  []byte("bPrefix" + "bRoot"),
-			fromIndex: 37,
-			wantValue: []byte("bPrefixbRo"),
-		},
-		{
-			name:      "unhappy limit exceeded",
-			bs:        []byte("111111111111" + Sep + "222222222222" + Sep + "00000000000000000000000000bPrefixbRo"),
-			boundary:  []byte("bPrefix" + "bRoot"),
-			fromIndex: 63,
-			wantValue: nil,
-		},
-	}
-	for _, v := range tt {
-		s.Run(v.name, func() {
-			b := BoundaryFirstPart(v.bs, v.boundary, v.fromIndex)
-			s.Equal(v.wantValue, b)
-		})
-	}
 }
 
 func (s *byteOpsSuite) TestGetLastLine() {
@@ -1471,7 +981,6 @@ func (s *byteOpsSuite) TestGetLastLine() {
 	for _, v := range tt {
 		s.Run(v.name, func() {
 			b := GetLastLine(v.bs, v.boundary)
-			//logger.L.Infof("in repo.TestGetLastLine b: %q\n", b)
 			s.Equal(v.wantValue, b)
 		})
 	}
@@ -1608,116 +1117,6 @@ func (s *byteOpsSuite) TestEndingOf() {
 	for _, v := range tt {
 		s.Run(v.name, func() {
 			s.Equal(v.wanted, EndingOf(v.long, v.short))
-		})
-	}
-}
-
-/*
-func (s *byteOpsSuite) TestGetFoFi() {
-	tt := []struct {
-		name     string
-		b        [][]byte
-		wantedFo string
-		wantedFi string
-	}{
-		{
-			name: "just fo",
-			b: [][]byte{
-				[]byte("Content-Disposition: form-data; name=\"alice\""),
-			},
-
-			wantedFo: "alice",
-			wantedFi: "",
-		},
-		{
-			name: "fo and fi",
-			b: [][]byte{
-				[]byte("Content-Disposition: form-data; name=\"alice\"; filename=\"a.txt\""),
-			},
-
-			wantedFo: "alice",
-			wantedFi: "a.txt",
-		},
-	}
-	for _, v := range tt {
-		s.Run(v.name, func() {
-			fo, fi := GetFoFi(v.b)
-			s.Equal(v.wantedFo, fo)
-			s.Equal(v.wantedFi, fi)
-		})
-	}
-}
-*/
-
-func (s *byteOpsSuite) TestJoinLines() {
-	tt := []struct {
-		name string
-		f    [][]byte
-		l    [][]byte
-		want [][]byte
-	}{
-		{
-			name: "len(f)==1, len(l)==1",
-			f: [][]byte{
-				[]byte("Content-Disposition: form-data; name=\"alice\"")},
-			l: [][]byte{
-				[]byte("Content-Type: text/plain"),
-			},
-			want: [][]byte{
-				[]byte("Content-Disposition: form-data; name=\"alice\""),
-				[]byte("Content-Type: text/plain"),
-			},
-		},
-
-		{
-			name: "len(f)==1, len(l)==2",
-			f: [][]byte{
-				[]byte("Content-Disposition: form-data; name=\"alice\"")},
-			l: [][]byte{
-				[]byte("; filename=\"short.txt\""),
-				[]byte("Content-Type: text/plain"),
-			},
-			want: [][]byte{
-				[]byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\""),
-				[]byte("Content-Type: text/plain"),
-			},
-		},
-
-		{
-			name: "len(f)==1, len(l)==3",
-			f: [][]byte{
-				[]byte("bPrefi")},
-			l: [][]byte{
-				[]byte("xbRoot"),
-				[]byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\""),
-				[]byte("Content-Type: text/plain"),
-			},
-			want: [][]byte{
-				[]byte("bPrefixbRoot"),
-				[]byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\""),
-				[]byte("Content-Type: text/plain"),
-			},
-		},
-
-		{
-			name: "len(f)==2, len(l)==1",
-			f: [][]byte{
-				[]byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\""),
-				[]byte("Content-T"),
-			},
-			l: [][]byte{
-				[]byte("ype: text/plain"),
-			},
-			want: [][]byte{
-				[]byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\""),
-				[]byte("Content-Type: text/plain"),
-			},
-		},
-	}
-	for _, v := range tt {
-		s.Run(v.name, func() {
-			got := JoinLines(v.f, v.l)
-			s.Equal(v.want, got)
 		})
 	}
 }
@@ -2254,7 +1653,7 @@ func (s *byteOpsSuite) TestBeginningEqual() {
 	}
 }
 
-func (s *byteOpsSuite) TestHasBoundary() {
+func (s *byteOpsSuite) TestContainsBouEnding() {
 	tt := []struct {
 		name string
 		bs   []byte

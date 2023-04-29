@@ -8,22 +8,23 @@ import (
 	"time"
 )
 
+// AnalyzeHeader returns first 512 bytes of connection and boundary if found
 func AnalyzeHeader(conn net.Conn) (Boundary, []byte, error) {
 	header := make([]byte, 512)
 	conn.SetReadDeadline(time.Now().Add(time.Millisecond * 15)) // tls handshake requires at least 9 ms timeout
-	n0, err := io.ReadFull(conn, header)
+	n, err := io.ReadFull(conn, header)
 	if err != nil &&
 		(err != io.EOF && err != io.ErrUnexpectedEOF && !os.IsTimeout(err)) {
 		return Boundary{}, header, err
 	}
-	if n0 < len(header) {
-		header = header[:n0]
+	if n < len(header) {
+		header = header[:n]
 	}
-	//logger.L.Infof("in repo.AnalyzeHeader header: %q\n", header)
 	bou := FindBoundary(header)
 	return bou, header, err
 }
 
+// AnalyzeBits returns result of reading 1024 bytes from connection
 func AnalyzeBits(conn net.Conn, i, p int, h []byte) (ReceiverBody, error) {
 	rb, ending := NewReceiverBody(i), make([]byte, 0)
 	if p == 0 {
@@ -89,6 +90,7 @@ func AnalyzeBits(conn net.Conn, i, p int, h []byte) (ReceiverBody, error) {
 
 }
 
+// Respond responds to connection with successful code
 func Respond(conn net.Conn) {
 
 	body := "200 OK"

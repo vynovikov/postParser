@@ -27,6 +27,8 @@ var a application.AppService
 func (s *tpsSuite) SetupTest() {
 	a = application.NewAppService(make(chan struct{}))
 }
+
+// TestHandleRequest tests work of tps recriver. Testdouble spy is used to evaluate corectness of reciever operation
 func (s *tpsSuite) TestHandleRequest() {
 
 	tt := []struct {
@@ -440,6 +442,7 @@ func (s *tpsSuite) TestHandleRequest() {
 			go v.R.HandleRequest(v.sr, v.TS, &v.wg)
 
 			fmt.Fprint(v.cl, v.req)
+			time.Sleep(time.Millisecond * 50)
 			s.Equal(v.wantRes, GetResponse(v.cl))
 
 			v.wg.Wait()
@@ -464,10 +467,8 @@ func GetResponse(conn net.Conn) []byte {
 	r := make([]byte, 200)
 	conn.SetReadDeadline(time.Now().Add(time.Millisecond * 25))
 	n, _ := io.ReadFull(conn, r)
-	//logger.L.Infof("in tp.GetResponse n %d\n", n)
 	if n < len(r) {
 		r = r[:n]
 	}
-	//logger.L.Infof("in tp.GetResponse r %q\n", r)
 	return r
 }

@@ -1,3 +1,6 @@
+// HTTPS receiver.
+//
+// x509 pair should be in tls forlder inside root directory
 package tps
 
 import (
@@ -33,7 +36,7 @@ func NewTpsReceiver(a application.Application) *tpsReceiverStruct {
 
 	cer, err := tls.LoadX509KeyPair("tls/cert.pem", "tls/key.pem")
 	if err != nil {
-		logger.L.Errorf("in tp.NewTpsReceiver tls.LoadX509KeyPair returned err: %v\n", err)
+		logger.L.Errorf("in tps.NewTpsReceiver tls.LoadX509KeyPair returned err: %v\n", err)
 		return nil
 	}
 
@@ -73,6 +76,7 @@ func (r *tpsReceiverStruct) Run() {
 
 }
 
+// Tested in https_test.go
 func (r *tpsReceiverStruct) HandleRequest(conn net.Conn, ts string, wg *sync.WaitGroup) {
 
 	p := 0
@@ -86,7 +90,6 @@ func (r *tpsReceiverStruct) HandleRequest(conn net.Conn, ts string, wg *sync.Wai
 		u := repo.NewReceiverUnit(h, b)
 
 		if errFirst != nil {
-			//logger.L.Errorf("in http.Handle errFirst: %v, breaking\n", errFirst)
 			if errFirst == io.EOF || errFirst == io.ErrUnexpectedEOF || os.IsTimeout(errFirst) {
 				u.H.Unblock = true
 				r.A.AddToFeeder(u)
@@ -118,15 +121,9 @@ func (r *tpsReceiverStruct) HandleRequest(conn net.Conn, ts string, wg *sync.Wai
 
 func (r *tpsReceiverStruct) Stop(wg *sync.WaitGroup) {
 
-	//logger.L.Errorln("in tps.Stop closing tps listener")
-
 	r.srv.l.Close()
 
-	//logger.L.Errorln("in tps.Stop waiting")
-
 	r.wg.Wait()
-
-	//logger.L.Errorln("in tps.Stop all stopped")
 
 	wg.Done()
 }

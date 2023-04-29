@@ -1,3 +1,4 @@
+// Helper package for convetient logging.
 package logger
 
 import (

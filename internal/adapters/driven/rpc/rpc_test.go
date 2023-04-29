@@ -263,100 +263,112 @@ func (s *rpcSuite) TestNewReqStream() {
 				},
 			},
 		},
-		/*
-			{
-				name: "preAction: repo.Continue postAction: repo.Continue, stream exists",
-				T: TransmitAdapter{
-					M: map[repo.StreamKey]pb.Saver_MultiPartClient{
-						{TS: "qqq", Part: 1}: stream,
-					},
+
+		{
+			name: "preAction: repo.Continue postAction: repo.Continue, stream exists",
+			T: TransmitAdapter{
+				M: map[repo.StreamKey]pb.Saver_MultiPartClient{
+					{TS: "qqq", Part: 1}: stream,
 				},
-				aduOne: repo.AppDistributorUnit{
-					H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
-				},
-				wantReq: &pb.FileUploadReq{
-					Info: &pb.FileUploadReq_FileData{
-						FileData: &pb.FileData{
-							ByteChunk: []byte("azaza"),
-						},
+			},
+			aduOne: repo.AppDistributorUnit{
+				H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
+			},
+			wantReq: &pb.FileUploadReq{
+				Info: &pb.FileUploadReq_FileData{
+					FileData: &pb.FileData{
+						Ts:        "qqq",
+						FieldName: "alice",
+						Number:    1,
+						ByteChunk: []byte("azaza"),
 					},
 				},
 			},
+		},
 
-			{
-				name: "preAction: repo.Open postAction: repo.Continue, stream not exists",
-				T: TransmitAdapter{
-					M: map[repo.StreamKey]pb.Saver_MultiPartClient{},
-				},
-				aduOne: repo.AppDistributorUnit{
-					H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Open, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
-				},
-				wantReq: &pb.FileUploadReq{
-					Info: &pb.FileUploadReq_FileData{
-						FileData: &pb.FileData{
-							ByteChunk: []byte("azaza"),
-						},
+		{
+			name: "preAction: repo.Open postAction: repo.Continue, stream not exists",
+			T: TransmitAdapter{
+				M: map[repo.StreamKey]pb.Saver_MultiPartClient{},
+			},
+			aduOne: repo.AppDistributorUnit{
+				H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Open, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
+			},
+			wantReq: &pb.FileUploadReq{
+				Info: &pb.FileUploadReq_FileData{
+					FileData: &pb.FileData{
+						Ts:        "qqq",
+						FieldName: "alice",
+						Number:    1,
+						ByteChunk: []byte("azaza"),
 					},
 				},
 			},
-			{
-				name: "preAction: repo.Continue postAction: repo.Finish",
-				T: TransmitAdapter{
-					M: map[repo.StreamKey]pb.Saver_MultiPartClient{
-						{TS: "qqq", Part: 1}: stream,
-					},
+		},
+		{
+			name: "preAction: repo.Continue postAction: repo.Finish",
+			T: TransmitAdapter{
+				M: map[repo.StreamKey]pb.Saver_MultiPartClient{
+					{TS: "qqq", Part: 1}: stream,
 				},
-				aduOne: repo.AppDistributorUnit{
-					H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
-				},
-				wantReq: &pb.FileUploadReq{
-					Info: &pb.FileUploadReq_FileData{
-						FileData: &pb.FileData{
-							ByteChunk: []byte("azaza"),
-							IsLast:    true,
-						},
+			},
+			aduOne: repo.AppDistributorUnit{
+				H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, M: repo.Message{PreAction: repo.Continue, PostAction: repo.Finish}}}, B: repo.AppDistributorBody{B: []byte("azaza")},
+			},
+			wantReq: &pb.FileUploadReq{
+				Info: &pb.FileUploadReq_FileData{
+					FileData: &pb.FileData{
+						Ts:        "qqq",
+						FieldName: "alice",
+						Number:    1,
+						ByteChunk: []byte("azaza"),
+						IsLast:    true,
 					},
 				},
 			},
+		},
 
-			{
-				name: "preAction: repo.StopLast postAction: repo.Continue",
-				T: TransmitAdapter{
-					M: map[repo.StreamKey]pb.Saver_MultiPartClient{
-						{TS: "qqq", Part: 1}: stream,
-					},
+		{
+			name: "preAction: repo.StopLast postAction: repo.Continue",
+			T: TransmitAdapter{
+				M: map[repo.StreamKey]pb.Saver_MultiPartClient{
+					{TS: "qqq", Part: 1}: stream,
 				},
-				aduOne: repo.AppDistributorUnit{
-					H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.StopLast, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
+			},
+			aduOne: repo.AppDistributorUnit{
+				H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.StopLast, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azaza")}},
 
-				wantReq: &pb.FileUploadReq{
-					Info: &pb.FileUploadReq_FileData{
-						FileData: &pb.FileData{
-							ByteChunk: []byte("azaza"),
-						},
+			wantReq: &pb.FileUploadReq{
+				Info: &pb.FileUploadReq_FileData{
+					FileData: &pb.FileData{
+						Ts:        "qqq",
+						Number:    1,
+						ByteChunk: []byte("azaza"),
 					},
 				},
 			},
+		},
 
-			{
-				name: "preAction: repo.StopLast postAction: repo.Finish",
-				T: TransmitAdapter{
-					M: map[repo.StreamKey]pb.Saver_MultiPartClient{
-						{TS: "qqq", Part: 1}: stream,
-					},
+		{
+			name: "preAction: repo.StopLast postAction: repo.Finish",
+			T: TransmitAdapter{
+				M: map[repo.StreamKey]pb.Saver_MultiPartClient{
+					{TS: "qqq", Part: 1}: stream,
 				},
-				aduOne: repo.AppDistributorUnit{
-					H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.StopLast, PostAction: repo.Finish}}}},
+			},
+			aduOne: repo.AppDistributorUnit{
+				H: repo.AppDistributorHeader{T: repo.ClientStream, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, M: repo.Message{PreAction: repo.StopLast, PostAction: repo.Finish}}}},
 
-				wantReq: &pb.FileUploadReq{
-					Info: &pb.FileUploadReq_FileData{
-						FileData: &pb.FileData{
-							IsLast: true,
-						},
+			wantReq: &pb.FileUploadReq{
+				Info: &pb.FileUploadReq_FileData{
+					FileData: &pb.FileData{
+						Ts:     "qqq",
+						Number: 1,
+						IsLast: true,
 					},
 				},
 			},
-		*/
+		},
 	}
 
 	for _, v := range tt {

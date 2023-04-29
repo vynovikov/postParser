@@ -2,6 +2,8 @@ package repo
 
 import "strings"
 
+// GetLastIndex returns index of last occurence of occ in s.
+// Tested in stringOps_test.go
 func GetLastIndex(s, occ string) int {
 	index, n := 0, 0
 	for strings.Contains(s, occ) {
@@ -18,11 +20,10 @@ func GetLastIndex(s, occ string) int {
 	return index
 }
 
-// returns string with single whitespaces
+// SingleSpaces returns s with no repeated whitespaces
 func SingleSpaces(s string) string {
 	res := ""
 	words := strings.Fields(s)
-	//logger.L.Infof("in repo.SingleSpace words: %q\n", words)
 	for i, v := range words {
 
 		if i > 0 && i < len(words) {
@@ -32,6 +33,5 @@ func SingleSpaces(s string) string {
 		res = res + v
 
 	}
-	//logger.L.Infof("in repo.SingleSpace res: %q\n", res)
 	return res
 }

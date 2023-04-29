@@ -32,7 +32,11 @@ func (s *applicationSuite) SetupTest() {
 func (s *applicationSuite) TestHandle() {
 	go func() {
 		for {
-			<-a.C.ChanOut
+			select {
+			case <-a.C.ChanOut:
+			case <-a.C.ChanLog:
+
+			}
 		}
 	}()
 	tt := []struct {
@@ -44,6 +48,7 @@ func (s *applicationSuite) TestHandle() {
 		wantA   *App
 		wantErr []error
 	}{
+
 		{
 			name: "B() == repo.False, E() == repo.False, counter.Cur == counter.Max == 0, ADU preAction == repo.Start, postAction == repo.Finish",
 			a: &App{
@@ -1769,6 +1774,8 @@ func (s *applicationSuite) TestHandle() {
 					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")},
@@ -1781,6 +1788,8 @@ func (s *applicationSuite) TestHandle() {
 							&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}}},
 					},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			wantErr: []error{
 				errors.New("in repo.NewStoreChange TS \"qqq\" is unknown"),
@@ -1799,6 +1808,8 @@ func (s *applicationSuite) TestHandle() {
 								}}}},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")},
@@ -1815,6 +1826,8 @@ func (s *applicationSuite) TestHandle() {
 						{TS: "qqq"}: {&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}}},
 					},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			wantErr: []error{
 				errors.New("in repo.NewStoreChange for given TS \"qqq\", Part \"3\" is unexpected"),
@@ -1839,6 +1852,8 @@ func (s *applicationSuite) TestHandle() {
 						}},
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 5, TS: "www", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
 			wantA: &App{
@@ -1859,6 +1874,8 @@ func (s *applicationSuite) TestHandle() {
 						{TS: "www"}: {&repo.AppPieceUnit{APH: repo.AppPieceHeader{Part: 5, TS: "www", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}}},
 					},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			wantErr: []error{
 				errors.New("in repo.NewStoreChange for given TS \"www\", Part \"5\" is unexpected"),
@@ -1890,6 +1907,8 @@ func (s *applicationSuite) TestHandle() {
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 6, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")},
@@ -1920,6 +1939,8 @@ func (s *applicationSuite) TestHandle() {
 					},
 					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			wantErr: []error{
 				errors.New("in repo.NewStoreChange for given TS \"qqq\", Part \"6\" is unexpected"),
@@ -1999,6 +2020,8 @@ func (s *applicationSuite) TestHandle() {
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type")},
@@ -2019,6 +2042,8 @@ func (s *applicationSuite) TestHandle() {
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			wantErr: []error{
 				errors.New("in repo.GetHeaderLines header \"Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type\" is not full"),
@@ -2034,6 +2059,8 @@ func (s *applicationSuite) TestHandle() {
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"")},
@@ -2054,6 +2081,8 @@ func (s *applicationSuite) TestHandle() {
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			wantErr: []error{
 				errors.New("in repo.GetHeaderLines header \"Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\" is not full"),
@@ -2078,6 +2107,8 @@ func (s *applicationSuite) TestHandle() {
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 2, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d: &repo.AppPieceUnit{
 				APH: repo.AppPieceHeader{Part: 3, TS: "qqq", B: repo.False, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"")},
@@ -2107,6 +2138,8 @@ func (s *applicationSuite) TestHandle() {
 					B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
 					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 1, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			wantErr: []error{
 				errors.New("in repo.GetHeaderLines header \"Content-Disposition: form-data; name=\"bob\"; filename=\"long.txt\"\" is not full"),
@@ -2214,6 +2247,8 @@ func (s *applicationSuite) TestHandle() {
 						}},
 					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 4, Cur: 3, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			d:   &repo.AppSub{ASH: repo.AppSubHeader{Part: 5, TS: "qqq"}, ASB: repo.AppSubBody{B: []byte("\r\n-----")}},
 			bou: repo.Boundary{Prefix: []byte("--"), Root: []byte("-----12345")},
@@ -2249,6 +2284,8 @@ func (s *applicationSuite) TestHandle() {
 					},
 					C: map[repo.AppStoreKeyGeneral]repo.Counter{{TS: "qqq"}: {Max: 3, Cur: 2, Started: true, Blocked: true}},
 				},
+				A: a,
+				L: &DistributorSpyLogger{},
 			},
 			wantErr: []error{},
 		},

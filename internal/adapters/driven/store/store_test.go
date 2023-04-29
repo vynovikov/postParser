@@ -27,8 +27,9 @@ func (s *storeSuite) TestRegister() {
 		wantErr   error
 		wantADU   repo.AppDistributorUnit
 	}{
+
 		{
-			name: "B, Part is matched, E() == repo.False => creating ADU, deleting ASKD, 2",
+			name: "B() == repo.True, Part is matched, E() == repo.False => creating ADU, deleting ASKD, 2",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -57,7 +58,7 @@ func (s *storeSuite) TestRegister() {
 		},
 
 		{
-			name: "B, D.H not full => fulfilling D_1",
+			name: "B() == repo.True, D.H not full => fulfilling D_1",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -94,7 +95,7 @@ func (s *storeSuite) TestRegister() {
 		},
 
 		{
-			name: "B, D.H not full => fulfilling D_2",
+			name: "B() == repo.True, D.H not full => fulfilling D_2",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -131,7 +132,7 @@ func (s *storeSuite) TestRegister() {
 		},
 
 		{
-			name: "B, D.H not full => fulfilling D_3",
+			name: "B() == repo.True, D.H not full => fulfilling D_3",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -168,7 +169,7 @@ func (s *storeSuite) TestRegister() {
 		},
 
 		{
-			name: "B, part is match, E()==repo.True => incrementing detailed key part",
+			name: "B() == repo.True, part is match, E()==repo.True => incrementing detailed key part",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -207,7 +208,7 @@ func (s *storeSuite) TestRegister() {
 		},
 
 		{
-			name: "B, part is not match => adding datapiece to buffer",
+			name: "B() == repo.True, part is not match => adding datapiece to buffer",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -249,7 +250,7 @@ func (s *storeSuite) TestRegister() {
 		},
 
 		{
-			name: "B, E == Probably => detailed part remains",
+			name: "B() == repo.True, E == Probably => detailed part remains",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -288,7 +289,7 @@ func (s *storeSuite) TestRegister() {
 		},
 
 		{
-			name: "B, TS is not match => add to buffer",
+			name: "B() == repo.True, TS is not match => add to buffer",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -329,7 +330,7 @@ func (s *storeSuite) TestRegister() {
 		},
 
 		{
-			name: "B, E == repo.False => deleting map record",
+			name: "B() == repo.True, E == repo.False => deleting map record",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -358,7 +359,7 @@ func (s *storeSuite) TestRegister() {
 		},
 
 		{
-			name: "B, E == repo.Probably => detailed part unchanged",
+			name: "B() == repo.True, E == repo.Probably => detailed part unchanged",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -397,7 +398,7 @@ func (s *storeSuite) TestRegister() {
 		},
 
 		{
-			name: "B, E == repo.Probably, AppSub present => detailed part incrementing",
+			name: "B() == repo.True, E == repo.Probably, AppSub present => detailed part incrementing",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -451,7 +452,7 @@ func (s *storeSuite) TestRegister() {
 		},
 
 		{
-			name: "B, while appSub present, 2 different ASKDs, 1",
+			name: "B() == repo.True, while appSub present, 2 different ASKDs, 1",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -508,7 +509,7 @@ func (s *storeSuite) TestRegister() {
 		},
 
 		{
-			name: "B, E()==repo.Probably, while appSub present, join new and old ASKD, 1",
+			name: "B() == repo.True, E()==repo.Probably, while appSub present, join new and old ASKD, 1",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -566,7 +567,7 @@ func (s *storeSuite) TestRegister() {
 		},
 
 		{
-			name: "B, E()==repo.Probably, 2 different askd with 1 branch in each => joining askd",
+			name: "B() == repo.True, E()==repo.Probably, 2 different askd with 1 branch in each => joining askd",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -623,7 +624,7 @@ func (s *storeSuite) TestRegister() {
 		},
 
 		{
-			name: "Registering dataPiece next to appSub. Header lines in the beginning of body",
+			name: "Registering dataPiece next to appSub. Boundary is separated. Header lines in the beginning of body",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -668,6 +669,52 @@ func (s *storeSuite) TestRegister() {
 			},
 			wantErr: errors.New("in store.Register new dataPiece group with TS \"qqq\" and Part = 5"),
 			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, U: repo.UnaryData{}, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 7}, F: repo.FiFo{FormName: "bob", FileName: "long.txt"}, B: repo.BeginningData{Part: 5}, M: repo.Message{PreAction: repo.StopLast, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazazazazaza")}},
+		},
+
+		{
+			name: "Registering dataPiece next to appSub. Header is separated. Header lines in the beginning of body",
+			store: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 0},
+								D: repo.Disposition{
+									H: []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\""),
+								},
+								E: repo.Probably,
+							},
+							true: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 0},
+								D: repo.Disposition{
+									H: []byte("\r\n"),
+								},
+								E: repo.Probably,
+							},
+						}}},
+			},
+			d: &repo.AppPieceUnit{
+				APH: repo.AppPieceHeader{Part: 1, TS: "qqq", B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("Content-Type: text/plain\r\n\r\nazazazazazaza")},
+			},
+			bou: repo.Boundary{Prefix: []byte("--"), Root: []byte("---------------0123456789")},
+			wantStore: &StoreStruct{
+				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
+					{TS: "qqq"}: {
+						{SK: repo.StreamKey{TS: "qqq", Part: 2}, S: false}: {
+							false: repo.AppStoreValue{
+								B: repo.BeginningData{Part: 0},
+								D: repo.Disposition{
+									H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
+									FormName: "alice",
+									FileName: "short.txt",
+								},
+								E: repo.True,
+							},
+						}}},
+				B: map[repo.AppStoreKeyGeneral][]repo.DataPiece{},
+			},
+			wantErr: nil,
+			wantADU: repo.AppDistributorUnit{H: repo.AppDistributorHeader{T: repo.ClientStream, U: repo.UnaryData{}, S: repo.StreamData{SK: repo.StreamKey{TS: "qqq", Part: 1}, F: repo.FiFo{FormName: "alice", FileName: "short.txt"}, B: repo.BeginningData{Part: 0}, M: repo.Message{PreAction: repo.Start, PostAction: repo.Continue}}}, B: repo.AppDistributorBody{B: []byte("azazazazazaza")}},
 		},
 
 		{
@@ -768,13 +815,9 @@ func (s *storeSuite) TestRegister() {
 		s.Run(v.name, func() {
 			b, err := v.store.Register(v.d, v.bou)
 			if v.wantErr != nil {
-				//logger.L.Errorf("in store.TestRegister err = %v\n", err)
 				s.Equal(v.wantErr, err)
 			}
-			//logger.L.Infof("in store.TestRegister wantStore = %v\n", v.wantStore)
-			//logger.L.Infof("in store.TestRegister v.store = %v\n", v.store)
 			s.Equal(v.wantStore, v.store)
-			//logger.L.Infof("in store.TestRegister wanB = %v\n", v.wantB)
 			s.Equal(v.wantADU, b)
 
 		})
@@ -1754,7 +1797,7 @@ func (s *storeSuite) TestPresense() {
 		},
 
 		{
-			name: "E() == repo.Probably, askd met, oppoaite branch met",
+			name: "E() == repo.Probably, askd met, opposite branch met",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -1824,7 +1867,7 @@ func (s *storeSuite) TestPresense() {
 		},
 
 		{
-			name: "ASKD met, B() == repo.True, E() == repo.False, Cur == 1 && Fuse == true => enpty Presense",
+			name: "ASKD met, B() == repo.True, E() == repo.False, Cur == 1 && S.C.Blocked == true => enpty Presense",
 			store: &StoreStruct{
 				R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
 					{TS: "qqq"}: {
@@ -1847,7 +1890,7 @@ func (s *storeSuite) TestPresense() {
 			},
 			d:            &repo.AppPieceUnit{APH: repo.AppPieceHeader{TS: "qqq", Part: 2, B: repo.True, E: repo.True}, APB: repo.AppPieceBody{B: []byte("azaza")}},
 			wantPresense: repo.Presense{},
-			wantError:    errors.New("in store.Presense matched but current counter == 1 && Fuse is on"),
+			wantError:    errors.New("in store.Presense matched but Cur == 1 && Blocked"),
 		},
 
 		{
@@ -2052,8 +2095,6 @@ func (s *storeSuite) TestPresense() {
 				s.Equal(v.wantError, gotError)
 			}
 
-			//logger.L.Errorf("in store.TestPresense gotError %v\n", gotError)
-
 			s.Equal(v.wantPresense, gotPresense)
 		})
 	}
@@ -2207,114 +2248,6 @@ func (s *storeSuite) TestDec() {
 	}
 }
 
-/*
-	func (s *storeSuite) TestUpdate() {
-		tt := []struct {
-			name      string
-			store     Store
-			dr        repo.DetailedRecord
-			wantStore Store
-		}{
-			{
-				name: "askg, askd present, updating askd",
-				store: &StoreStruct{
-					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-						{TS: "qqq"}: {
-							{SK: repo.StreamKey{TS: "qqq", Part: 0}, S: false}: {
-								false: repo.AppStoreValue{
-									D: repo.Disposition{
-										H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-										FormName: "alice",
-										FileName: "short.txt",
-									},
-									B: repo.BeginningData{Part: 0},
-									E: repo.True,
-								},
-							},
-						},
-					},
-				},
-				dr: repo.DetailedRecord{
-					ASKD: repo.AppStoreKeyDetailed{SK: repo.StreamKey{TS: "qqq", Part: 0}, S: false},
-					DR: map[bool]repo.AppStoreValue{
-						false: {
-							D: repo.Disposition{
-								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-								FormName: "alice",
-								FileName: "short.txt",
-							},
-							B: repo.BeginningData{Part: 0},
-							E: repo.True,
-						},
-					},
-				},
-				wantStore: &StoreStruct{
-					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-						{TS: "qqq"}: {
-							{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
-								false: repo.AppStoreValue{
-									D: repo.Disposition{
-										H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-										FormName: "alice",
-										FileName: "short.txt",
-									},
-									B: repo.BeginningData{Part: 0},
-									E: repo.True,
-								},
-							},
-						},
-					},
-				},
-			},
-
-			{
-				name: "create askg, update askd",
-				store: &StoreStruct{
-					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{},
-				},
-				dr: repo.DetailedRecord{
-					ASKD: repo.AppStoreKeyDetailed{SK: repo.StreamKey{TS: "qqq", Part: 0}, S: false},
-					DR: map[bool]repo.AppStoreValue{
-						false: {
-							D: repo.Disposition{
-								H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-								FormName: "alice",
-								FileName: "short.txt",
-							},
-							B: repo.BeginningData{Part: 0},
-							E: repo.True,
-						},
-					},
-				},
-				wantStore: &StoreStruct{
-					R: map[repo.AppStoreKeyGeneral]map[repo.AppStoreKeyDetailed]map[bool]repo.AppStoreValue{
-						{TS: "qqq"}: {
-							{SK: repo.StreamKey{TS: "qqq", Part: 1}, S: false}: {
-								false: repo.AppStoreValue{
-									D: repo.Disposition{
-										H:        []byte("Content-Disposition: form-data; name=\"alice\"; filename=\"short.txt\"\r\nContent-Type: text/plain\r\n\r\n"),
-										FormName: "alice",
-										FileName: "short.txt",
-									},
-									B: repo.BeginningData{Part: 0},
-									E: repo.True,
-								},
-							},
-						},
-					},
-				},
-			},
-		}
-
-		for _, v := range tt {
-			s.Run(v.name, func() {
-				v.store.Update(v.dr)
-
-				s.Equal(v.wantStore, v.store)
-			})
-		}
-	}
-*/
 func (s *storeSuite) TestAct() {
 	tt := []struct {
 		name      string

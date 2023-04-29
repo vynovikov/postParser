@@ -4,7 +4,10 @@ Requirements: Docker and docker compose installed
 - download [docker-compose.yaml](https://github.com/vynovikov/postParser/blob/main/docker-compose.yaml)
 -  run ``docker-compose up`` in folder with docker-compose.yaml file
 
-#### What does postParser do?
+#### What is postParser?
+HTTP request exchange is the most common type of communication. Each internet service participating in communication performs task of processing HTTP requests. PostParser is example of such processor.
+
+#### What does postParser do actually?
 PostParser parses incoming http(https) request, converts it into convenient form and sends output via gRPC. Second service ([postSaver](https://github.com/vynovikov/postSaver)) gets output and stores it on disk as files. Third service ([postLogger](https://github.com/vynovikov/postLogger)) gets logs from postParser and saves the on disk similarly. 
 
 POST request should use **multipart/for-data** content type. Each form may contain text field or file. 
@@ -17,7 +20,7 @@ https://user-images.githubusercontent.com/19687368/232817578-f8e998d7-d582-4b48-
 
 ## Architecture
 
-PostParser has hexagonal architecture. All its modules are loosely coupled and can be modified easily with no affect on other ones. 
+PostParser has hexagonal architecture. All its modules are loosely coupled and can be modified easily without affecting each other. 
 
 ![postParser](forManual/arch.png)
 
@@ -37,6 +40,7 @@ PostParser has hexagonal architecture. All its modules are loosely coupled and c
 >**Buffer**
 >Stores dataPieces. Keeps  being sorted after each addition. Tries to register stored elements >after successful registration of new dataPiece
 
+​																													*\* click image below to activate animation*
 ![](forManual/1.gif)
 
 >**Counter**
@@ -53,9 +57,11 @@ sync.RWMutex is used for synchronization
 ## Graceful shutdown
 
 After receiving interrupt signal, application first finishes its current work , then terminates.
+
+​											*\* click image below to activate animation*
 ![](forManual/graceful.gif)
 
-​																													\* process durations are shown schematically
+​										*\*\* timescale used is for illustrative purposes only and does not reflect the actual duration of the process*
 
 #### Action sequence
 

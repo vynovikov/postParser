@@ -1,3 +1,4 @@
+// HTTP Reciever.
 package tp
 
 import (
@@ -47,25 +48,25 @@ func NewTpReceiver(a application.Application) *tpReceiverStruct {
 func (r *tpReceiverStruct) Run() {
 	for {
 		conn, err := r.srv.l.Accept()
-		//logger.L.Infof("in tp.Run conn: %v, err: %v\n", conn, err)
 		if err != nil && conn == nil && r.A.Stopping() {
 
-			//logger.L.Errorln("in tp.Run closing chanIn")
 			r.wg.Wait()
 			r.A.ChainInClose()
 
 			return
 
 		}
+
 		r.wg.Add(1)
 		ts := repo.NewTS()
-		//logger.L.Infof("in tp.Run current time %v, ts: %q\n", time.Now().Format("02.01.2006 15_16_17"), ts)
+
 		go r.HandleRequest(conn, ts, &r.wg)
 
 	}
 
 }
 
+// Tested in http_test.go
 func (r *tpReceiverStruct) HandleRequest(conn net.Conn, ts string, wg *sync.WaitGroup) {
 	p := 0
 
@@ -76,14 +77,10 @@ func (r *tpReceiverStruct) HandleRequest(conn net.Conn, ts string, wg *sync.Wait
 		b, errSecond := repo.AnalyzeBits(conn, 1024, p, header)
 
 		u := repo.NewReceiverUnit(h, b)
-		if p == 4 || p == 5 {
-			logger.L.Infof("in tp.HandleRequest unit header %v, body: %q, errFirst %v, errSecond %v\n", u.H, u.B.B, errFirst, errSecond)
-		}
 		if errFirst != nil {
 
 			if errFirst == io.EOF || errFirst == io.ErrUnexpectedEOF || os.IsTimeout(errFirst) {
 				u.H.Unblock = true
-				//logger.L.Errorf("in tp.HandleRequest errFirst case u header: %v, error: %v\n", u.H, errFirst)
 				r.A.AddToFeeder(u)
 				break
 			}
@@ -91,7 +88,6 @@ func (r *tpReceiverStruct) HandleRequest(conn net.Conn, ts string, wg *sync.Wait
 		if errSecond != nil {
 			if errSecond == io.EOF || errSecond == io.ErrUnexpectedEOF || os.IsTimeout(errSecond) {
 				u.H.Unblock = true
-				//logger.L.Errorf("in tp.HandleRequest errSecond case u header: %v, error: %v\n", u.H, errSecond)
 				r.A.AddToFeeder(u)
 				break
 			}
@@ -106,26 +102,17 @@ func (r *tpReceiverStruct) HandleRequest(conn net.Conn, ts string, wg *sync.Wait
 	}
 
 	repo.Respond(conn)
+
 	wg.Done()
 	if r.A.Stopping() {
-		//logger.L.Errorln("in tp.HandleRequest closing chainIn")
 		r.A.ChainInClose()
 	}
 }
-
 func (r *tpReceiverStruct) Stop(wg *sync.WaitGroup) {
-
-	//logger.L.Errorln("in tp.Stop closing tp listener")
 
 	r.srv.l.Close()
 
-	//logger.L.Errorln("in tp.Stop waiting")
-
 	r.wg.Wait()
-
-	//logger.L.Errorln("in tp.Stop all stopped")
-
-	//r.A.ChainInClose()
 
 	wg.Done()
 }

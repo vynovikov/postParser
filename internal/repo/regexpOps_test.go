@@ -438,14 +438,12 @@ func (s *regexpSuite) TestIsBoundary() {
 		p    []byte
 		n    []byte
 		bou  Boundary
-		//wanted bool
 	}{
 		{
 			name: "",
 			p:    []byte("bPre"),
 			n:    []byte("fixbRoot\r\nContent-Disposition"),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
-			//wanted: true,
 		},
 	}
 	for _, v := range tt {
@@ -459,33 +457,15 @@ func (s *regexpSuite) TestIsLastBoundary() {
 		p    []byte
 		n    []byte
 		bou  Boundary
-		//wanted bool
 	}{
 		{
 			name: "",
 			p:    []byte("bPre"),
 			n:    []byte("fixbRootbSuffix\r\n"),
 			bou:  Boundary{Prefix: []byte("bPrefix"), Root: []byte("bRoot")},
-			//wanted: true,
 		},
 	}
 	for _, v := range tt {
 		s.True(IsLastBoundary(v.p, v.n, v.bou))
 	}
 }
-
-/*
-func (s *regexpSuite) TestIsLastBoundary() {
-	tt := []struct {
-		name string
-		p    []byte
-		n    []byte
-		bou  Boundary
-		//wanted bool
-	}{
-	}
-	for _, v := range tt {
-		s.True(IsLastBoundary(v.p, v.n, v.bou))
-	}
-}
-*/

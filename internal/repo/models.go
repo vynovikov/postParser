@@ -6,46 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
-
-	"github.com/vynovikov/postParser/internal/adapters/driven/rpc/tosaver/pb"
-	"github.com/vynovikov/postParser/internal/logger"
 )
-
-type Unit struct {
-	Name  string
-	Value []byte
-}
-
-type Meta struct {
-	boundary     string
-	bodyStartPos int
-	streamPart   stream
-	boundaryPart boundary
-	headerPart   header
-}
-
-type stream struct {
-	previous *pb.Saver_MultiPartClient
-}
-
-type boundary struct {
-	previous string
-}
-type header struct {
-	previos string
-}
-
-/*
-	type BlockInfo struct {
-		TS       time.Time
-		Boundary stringS
-	}
-*/
-type FormInfo struct {
-	TS       time.Time
-	FormName string
-}
 
 type Vocabulaty struct {
 	Boundary     Boundary
@@ -71,9 +32,26 @@ type ReceiverHeader struct {
 	Bou     Boundary
 	Unblock bool
 }
+
+func NewReceiverHeader(ts string, p int, bou Boundary) ReceiverHeader {
+
+	return ReceiverHeader{
+		Part: p,
+		TS:   ts,
+		Bou:  bou,
+	}
+}
+
 type ReceiverBody struct {
 	B []byte
 }
+
+func NewReceiverBody(n int) ReceiverBody {
+	return ReceiverBody{
+		B: make([]byte, n),
+	}
+}
+
 type ReceiverSignal struct {
 	Signal string
 }
@@ -122,82 +100,6 @@ func NewBoundary(r []byte) Boundary {
 	}
 }
 
-func NewReceiverHeader(ts string, p int, bou Boundary) ReceiverHeader {
-
-	return ReceiverHeader{
-		Part: p,
-		TS:   ts,
-		Bou:  bou,
-	}
-}
-func NewReceiverBody(n int) ReceiverBody {
-	return ReceiverBody{
-		B: make([]byte, n),
-	}
-}
-
-type SepHeader struct {
-	IsBoundary bool
-	Lines      []string
-}
-
-func NewSepHeader(isBoundary bool, prevBody []string) *SepHeader {
-	return &SepHeader{
-		IsBoundary: isBoundary,
-		Lines:      prevBody,
-	}
-}
-
-func NewSepHeaderBP(isBoundary bool, prevBody []string) SepHeader {
-	return SepHeader{
-		IsBoundary: isBoundary,
-		Lines:      prevBody,
-	}
-}
-
-type SepBody struct {
-	Line string
-}
-
-func NewSepBody(line string) *SepBody {
-	return &SepBody{
-		Line: line,
-	}
-}
-func NewSepBodyBP(l string) SepBody {
-	return SepBody{
-		Line: l,
-	}
-}
-
-type AppFeederHeader struct {
-	SepHeader *SepHeader
-	SepBody   *SepBody
-	PrevPart  int
-}
-
-func NewAppFeederHeader(sepHeader *SepHeader, sepBody *SepBody, prevPart int) *AppFeederHeader {
-	return &AppFeederHeader{
-		SepHeader: sepHeader,
-		SepBody:   sepBody,
-		PrevPart:  prevPart,
-	}
-}
-
-type AppFeederHeaderBP struct {
-	SepHeader SepHeader
-	SepBody   SepBody
-	PrevPart  int
-}
-
-func NewAppFeederHeaderBP(sh SepHeader, sb SepBody, pp int) AppFeederHeaderBP {
-	return AppFeederHeaderBP{
-		SepHeader: sh,
-		SepBody:   sb,
-		PrevPart:  pp,
-	}
-}
-
 type AppUnit interface {
 	GetHeader() string
 	GetBody() []byte
@@ -233,13 +135,6 @@ func (afu *AppFeederUnit) SetBody(b []byte) {
 	afu.R.B.B = b
 }
 
-func (sh *SepHeader) Set(b bool, s []string) {
-	sh.IsBoundary = false
-	sh.Lines = s
-}
-
-//Todo test embedded structs with pointers
-
 type MultipartHeader struct {
 	SeqNum int
 }
@@ -253,8 +148,7 @@ func NewMultipartHeader(n int) MultipartHeader {
 type StreamKey struct {
 	TS   string
 	Part int
-	N    bool // is created on current part
-	//Remove bool
+	N    bool // is created on current part?
 }
 
 func NewStreamKey(ts string, part int, n bool) StreamKey {
@@ -462,19 +356,16 @@ func (adu AppDistributorUnit) GetBody() []byte {
 }
 
 func NewDistributorUnitStream(ask AppStoreValue, d DataPiece, m Message) AppDistributorUnit {
-	//logger.L.Infof("repo.NewDistributorUnitStream invoked by d.GetBody()  = %q\n", d.GetBody(0))
 	sk := NewStreamKey(d.TS(), d.Part(), false)
 	fifo := NewFiFo(ask.D.FormName, ask.D.FileName)
 	b := ask.B
 	sm := m
 
 	sd := NewStreamData(sk, fifo, sm, b)
-	//logger.L.Infof("in repo.NewDistributorUnitFromStore sk = %v\n", sk)
 	adu := AppDistributorUnit{
 		H: NewAppDistributorHeader(ClientStream, sd, UnaryData{}),
 		B: NewDistributorBody(d.GetBody(0)),
 	}
-	//logger.L.Infof("in repo.NewDistributorUnitFromStore adu: %q\n", adu.B.B)
 
 	return adu
 
@@ -486,7 +377,6 @@ func NewDistributorUnitStreamEmpty(ask AppStoreValue, d DataPiece, m Message) Ap
 	sm := NewStreamMessage(m)
 
 	sd := NewStreamData(sk, fifo, sm, BeginningData{})
-	//logger.L.Infof("in repo.NewDistributorUnitFromStore sk = %v\n", sk)
 
 	return AppDistributorUnit{
 		H: NewAppDistributorHeader(ClientStream, sd, UnaryData{}),
@@ -494,8 +384,6 @@ func NewDistributorUnitStreamEmpty(ask AppStoreValue, d DataPiece, m Message) Ap
 }
 
 func NewAppDistributorUnitUnary(d DataPiece, bou Boundary, m Message) AppDistributorUnit {
-	//logger.L.Infof("repo.NewAppDistributorUnitUnary invoked with dataPiece header: %v, body: %q, bou: %q, message: %v\n", d.GetHeader(), d.GetBody(0), bou, m)
-	//b:=make([]byte,0)
 	h, err := d.H(bou)
 	if err != nil &&
 		!strings.Contains(err.Error(), "is ending part") {
@@ -510,10 +398,6 @@ func NewAppDistributorUnitUnary(d DataPiece, bou Boundary, m Message) AppDistrib
 
 	uk := NewUnaryKey(d.TS(), d.Part())
 
-	//d.BodyCut(len(h))
-
-	//logger.L.Infof("in repo.NewAppDistributorUnitUnary fifo: %v, m: %v, body: %q\n", fifo, m, d.GetBody(0))
-
 	return AppDistributorUnit{
 		H: NewAppDistributorHeader(Unary, StreamData{}, NewUnary(uk, fifo, m)),
 		B: NewDistributorBody(d.GetBody(0)[len(h):]),
@@ -521,42 +405,17 @@ func NewAppDistributorUnitUnary(d DataPiece, bou Boundary, m Message) AppDistrib
 }
 
 func NewAppDistributorUnitUnaryComposed(ask AppStoreValue, d DataPiece, m Message) AppDistributorUnit {
-	//logger.L.Infof("repo.NewAppDistributorUnitUnaryComposed invoked with dataPiece header: %v, body: %q, message: %v\n", d.GetHeader(), d.GetBody(0), m)
-	//b:=make([]byte,0)
 	uk := NewUnaryKey(d.TS(), d.Part())
 	fifo := NewFiFo(ask.D.FormName, ask.D.FileName)
 	sm := m
 
 	ud := NewUnaryData(uk, fifo, sm)
-	//logger.L.Infof("in repo.NewDistributorUnitFromStore sk = %v\n", sk)
 	adu := AppDistributorUnit{
 		H: NewAppDistributorHeader(Unary, StreamData{}, ud),
 		B: NewDistributorBody(d.GetBody(0)),
 	}
 
 	return adu
-}
-
-type CallBoard struct {
-	FormName     string
-	FileName     string
-	InitPart     int
-	InitFragment []byte
-}
-
-func NewCB(p int, f []byte) *CallBoard {
-	return &CallBoard{
-		InitPart:     p,
-		InitFragment: f,
-	}
-}
-
-func (c *CallBoard) SetFormMame(f string) {
-	c.FormName = f
-}
-
-func (c *CallBoard) SetFileMame(f string) {
-	c.FileName = f
 }
 
 type disposition int
@@ -592,7 +451,6 @@ type AppPieceHeader struct {
 
 func NewAppPieceHeader() AppPieceHeader {
 	aph := AppPieceHeader{}
-	//logger.L.Infof("in repo.NewAppPieceHeader returning %v\n", aph)
 	return aph
 }
 
@@ -626,8 +484,6 @@ func NewAppPieceBodyFilled(b []byte) AppPieceBody {
 		B: b,
 	}
 }
-
-// may be deleted
 func (apb *AppPieceBody) SetBody(b []byte) {
 	apb.B = b
 }
@@ -655,19 +511,6 @@ func NewAppPieceUnitCompose(p int, ts string) AppPieceUnit {
 		APB: AppPieceBody{},
 	}
 }
-
-/*
-	func NewAppPieceUnitFromAS(as AppSub) AppPieceUnit {
-		return AppPieceUnit{
-			APH: AppPieceHeader{
-				Part: as.Part,
-				TS:   as.TS,
-				E:    true,
-			},
-			APB: AppPieceBody{},
-		}
-	}
-*/
 func (apu *AppPieceUnit) SetB(b []byte) {
 	apu.APB.B = b
 }
@@ -726,24 +569,22 @@ func NewDisposition() Disposition {
 	return Disposition{}
 }
 
-// Cuts header fron datapiece, creates Disposition on its base
+// NewDispositionFilled cuts header fron dataPiece, creates Disposition on its base
 func NewDispositionFilled(d DataPiece, bou Boundary) (Disposition, error) {
 
 	header, err := d.H(bou)
 	d.BodyCut(len(header))
-	//logger.L.Infof("in repo.NewDispositionFilled header: %q, err: %v\n", header, err)
 	dispo := NewDisposition()
 	if err != nil {
 		if strings.Contains(err.Error(), "is not full") {
 			dispo.SetH(header)
 			errCore := err.Error()[len("in repo.GetHeaderLines header \""):strings.Index(err.Error(), "\" is not full")]
-			//logger.L.Infof("in store.calcHeader errCore: \"%s\"\n", errCore)
 			return dispo, fmt.Errorf("in repo.NewDispositionFilled header \"%s\" is not full", errCore)
 		}
 	}
 	dispo.SetH(header)
 	dispo.FormName, dispo.FileName = GetFoFi(header)
-	//logger.L.Infof("in repo.NewDispositionFilled dispo header: %q, formName: %q, fileName: %q\n", dispo.H, dispo.FormName, dispo.FileName)
+
 	return dispo, nil
 }
 
@@ -763,7 +604,6 @@ type AppStoreKeyDetailed struct {
 }
 
 func NewAppStoreKeyDetailed(d DataPiece) AppStoreKeyDetailed {
-	//logger.L.Infof("in store.NewAppStoreKeyDetailed d.Header %v, d.IsSub(): %t\n", d.GetHeader(), d.IsSub())
 	if d.IsSub() {
 
 		return AppStoreKeyDetailed{
@@ -785,12 +625,6 @@ func NewAppStoreKeyDetailed(d DataPiece) AppStoreKeyDetailed {
 	}
 
 }
-
-/*
-	func (ask *AppStoreKeyDetailed) SetDisposition(d Disposition) {
-		ask.D = d
-	}
-*/
 func (ask AppStoreKeyDetailed) DecPart() AppStoreKeyDetailed {
 	return AppStoreKeyDetailed{
 		SK: StreamKey{
@@ -858,6 +692,9 @@ type AppStoreBufferIDs struct {
 func NewAppStoreBufferIDs() *AppStoreBufferIDs {
 	return &AppStoreBufferIDs{}
 }
+
+// Add appends new element to slice of ASBI.
+// Tested in models_test.go
 func (a *AppStoreBufferIDs) Add(asbi AppStoreBufferID) {
 	if a.ASKG.TS == "" {
 		a.ASKG = asbi.ASKG
@@ -872,7 +709,6 @@ func (a *AppStoreBufferIDs) Add(asbi AppStoreBufferID) {
 }
 func (a *AppStoreBufferIDs) GetIDs(askg AppStoreKeyGeneral) []int {
 	if a.ASKG.TS == askg.TS {
-		//logger.L.Infof("in repo.GetIDs returning %d\n", a.I)
 		return a.I
 	}
 	return make([]int, 0)
@@ -901,12 +737,12 @@ type AppStoreValue struct {
 	E disposition
 }
 
+// NewAppStoreValue creates ASV based on dataPiece and boundary parameters.
+// Tested in models_test.go
 func NewAppStoreValue(d DataPiece, bou Boundary) (AppStoreValue, error) {
-	//logger.L.Infof("repo.NewAppStoreValue invoked with datapiece header: %v, body %q, bou %q\n", d.GetHeader(), d.GetBody(0), bou)
 	asv := AppStoreValue{}
 
 	header, err := d.H(bou)
-	//logger.L.Infof("in repo.NewAppStoreValue header: %q\n", header)
 	asv.B = NewBeginningData(d.Part())
 	asv.E = d.E()
 	if err != nil {
@@ -922,50 +758,34 @@ func NewAppStoreValue(d DataPiece, bou Boundary) (AppStoreValue, error) {
 	}
 	asv.D.H = header
 	asv.D.FormName, asv.D.FileName = GetFoFi(asv.D.H)
-	//logger.L.Infof("in repo.NewAppStoreValue dataPiece header %v, asv = %v", d.GetHeader(), asv)
 	return asv, nil
 }
 
+// CompleteAppStoreValue completes given ASB based on dataPiece and boundary parameters.
+// Tested in models_test.go
 func CompleteAppStoreValue(asv AppStoreValue, d DataPiece, bou Boundary) (AppStoreValue, error) {
 	ci := 0
 	header, err := d.H(bou)
-	//logger.L.Infof("in repo.CompleteAppStoreValue initial asv: %q, header: %q, err: %v\n", asv, header, err)
 	if err != nil {
-		/*
-			logger.L.Errorf("in repo.CompleteAppStoreValue err: %v, contains? %t\n", err, strings.Contains(err.Error(), "no header found"))
-
-			logger.L.Errorf("in repo.CompleteAppStoreValue first %t second %t third %t\n",
-				!strings.Contains(err.Error(), "is not full"),
-				!strings.Contains(err.Error(), "is ending part"),
-				!strings.Contains(err.Error(), "no header found"))
-		*/
 		if !strings.Contains(err.Error(), "is not full") &&
 			!strings.Contains(err.Error(), "is ending part") &&
 			!strings.Contains(err.Error(), "no header found") {
 			return asv, err
 		}
 		if strings.Contains(err.Error(), "no header found") {
-			//logger.L.Infoln("in repo.CompleteAppStoreValue no header found")
 			return AppStoreValue{}, err
 		}
-		//if strings.Contains(err.Error(),"is ending part")
 	}
 	ci = bytes.Index(header, []byte("Content-Disposition"))
-	//logger.L.Infof("in repo.CompleteAppStoreValue ci = %d\n", ci)
 
 	if ci > 0 {
 
 		if IsBoundary(asv.D.H, header, bou) {
 
-			//logger.L.Infof("in repo.CompleteAppStoreValue header[ci:]: %q\n", header[ci:])
-
 			raw := append(asv.D.H, header...)
 
-			//			logger.L.Infof("in repo.CompleteAppStoreValue asv.D.H: %q\n",raw)
 			asv.D.H = raw[bytes.Index(raw, []byte("Content-Disposition")):]
-
 			asv.D.FormName, asv.D.FileName = GetFoFi(asv.D.H)
-
 			asv.E = d.E()
 
 			return asv, nil
@@ -992,13 +812,11 @@ func NewBeginningData(bp int) BeginningData {
 type DataPiece interface {
 	B() disposition
 	E() disposition
-	L(Boundary) ([][]byte, int, error)
 	LL() int
 	H(Boundary) ([]byte, error)
 	Part() int
 	TS() string
 	IsSub() bool
-	//Prepare(string, int)
 	BodyCut(int)
 	GetBody(int) []byte
 	GetHeader() string
@@ -1029,50 +847,22 @@ func (a *AppPieceUnit) IsSub() bool {
 	return false
 }
 
-func (a *AppPieceUnit) L(bou Boundary) ([][]byte, int, error) {
-
-	//lines, cut, err := make([][]byte, 0), 0, errors.New("")
-	limit := Min(len(a.APB.B), MaxHeaderLimit)
-
-	if a.APH.B == True {
-
-		//logger.L.Infof("in repo.L trying to get lines from : %q\n", a.APB.B)
-
-		lines, cut, err := GetLinesRightBegin(a.APB.B[:limit], limit, bou)
-
-		return lines, cut, err
-
-	}
-	lines, cut, err := GetLinesRightMiddle(a.APB.B[:limit], limit)
-
-	return lines, cut, err
-}
+// LL returns length of dataPiece's body
 func (a *AppPieceUnit) LL() int {
 	return len(a.APB.B)
 }
-func (a *AppPieceUnit) Prepare(ts string, p int) {
-	aph := AppPieceHeader{}
-	aph.SetTS(ts)
-	aph.SetPart(p)
 
-	a.APH = aph
-
-}
-
-// Cuts fisrt c bytes from dataPirce's body
+// BodyCut cuts fisrt c bytes from dataPirce's body.
+// Tested in models_test.go
 func (a *AppPieceUnit) BodyCut(c int) {
-	//logger.L.Infof("repo.BodyCut for dataPiece's body %q of length %d invoked with parameters c = %d\n", a.APB.B, len(a.APB.B), c)
 	if c < len(a.APB.B)-1 {
 		a.APB.B = a.APB.B[c:]
-		//logger.L.Infof("in repo.BodyCut body became: %q\n", a.APB.B)
-
 	} else {
-
 		a.APB.B = []byte{}
-
 	}
 }
 
+// GetBody returns first n bytes of dataPiece's body
 func (a *AppPieceUnit) GetBody(n int) []byte {
 
 	lenb := len(a.APB.B)
@@ -1082,20 +872,24 @@ func (a *AppPieceUnit) GetBody(n int) []byte {
 	return a.APB.B
 }
 
+// Prepend adds b to body, placing addition in front of old content
 func (a *AppPieceUnit) Prepend(b []byte) {
 	old := a.APB.B
 
 	a.APB.B = append([]byte{}, b...)
-	//	a.APB.B = append(a.APB.B, bou.Prefix...)
 	a.APB.B = append(a.APB.B, old...)
 }
+
+// GetHeader returns header of dataPiece as string
 func (a *AppPieceUnit) GetHeader() string {
 	return fmt.Sprintf("%v", a.APH)
 }
+
+// H return header lines found in the beginning of the body and error
+// Tested in models_test.go
 func (a *AppPieceUnit) H(bou Boundary) ([]byte, error) {
 
 	b := a.GetBody(Min(a.LL(), MaxHeaderLimit))
-	//logger.L.Infof("in repo.H b: %q", b)
 
 	return GetHeaderLines(b, bou)
 
@@ -1167,6 +961,8 @@ type DetailedRecord struct {
 	DR   map[bool]AppStoreValue
 }
 
+// NewStoreChange calculates how store.R should be changed due to dataPiece.
+// Tested in models_test.go
 func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) {
 	sc, _, asv, dr, gr, askd, ok, err := StoreChange{}, make([]AppStoreKeyDetailed, 0), AppStoreValue{}, make(map[bool]AppStoreValue), make(map[AppStoreKeyDetailed]map[bool]AppStoreValue), NewAppStoreKeyDetailed(d), false, errors.New("")
 
@@ -1180,13 +976,10 @@ func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) 
 			return sc, fmt.Errorf("in repo.NewStoreChange for given TS \"%s\", Part \"%d\" is unexpected", d.TS(), d.Part())
 		}
 		sc.From = p.GR
-
-		//logger.L.Infof("in repo.NewStoreChange p.GR[askd][false]: %v\n", p.GR[askd][false])
 		if asv, ok = p.GR[askd][false]; ok {
 
 			if asv.D.FormName == "" {
 				asv, err = CompleteAppStoreValue(asv, d, bou)
-				logger.L.Infof("in repo.NewStoreChange asv: %q, error: %v", asv, err)
 				if err != nil {
 					if !strings.Contains(err.Error(), "is not full") &&
 						!strings.Contains(err.Error(), "is ending part") {
@@ -1207,7 +1000,6 @@ func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) 
 				}
 			}
 			asv.E = d.E()
-			//logger.L.Infof("in repo.NewStoreChange asv: %q\n", asv)
 			dr[false] = asv
 
 			switch len(p.GR) {
@@ -1217,11 +1009,7 @@ func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) 
 					sc.A = Change
 
 					m3t := p.GR[askd][true]
-					//logger.L.Infof("in repo.NewStoreChange m3t: %v\n", m3t)
-					//if !IsBoundary(m3t.D.H,d.GetBody())
-					//asvv := p.GR[askd][false]
 					asv, err = CompleteAppStoreValue(m3t, d, bou)
-					//logger.L.Infof("in repo.NewStoreChange asv: %q, error: %v", asv, err)
 
 					if err != nil {
 						if strings.Contains(err.Error(), "no header found") { // no new asv
@@ -1240,7 +1028,6 @@ func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) 
 
 					return sc, nil
 				}
-				//logger.L.Infoln("strait case")
 
 				switch d.E() {
 				case False:
@@ -1255,12 +1042,9 @@ func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) 
 					gr[askd.IncPart().F()] = dr
 					sc.To = gr
 
-					//logger.L.Infof("in repo.NewStoreChange true case sc: %v\n", sc)
-
 					return sc, nil
 
 				case Probably:
-					//logger.L.Warnln("in repo.NewStoreChange Probably case")
 
 					gr[askd.F()] = dr
 
@@ -1286,25 +1070,20 @@ func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) 
 						if strings.Contains(err.Error(), "no header found") { // no new asv
 
 							dr[false] = m3f[false]
-
 							gr[askd.IncPart().F()] = dr
-
 							sc.To = gr
 
 							return sc, err
 						}
 					}
 					dr[false] = asv
-
 					gr[askd.IncPart().F()] = dr
-
 					sc.To = gr
 
 					return sc, nil
 
 				}
 				gr[askd.IncPart().F()] = dr
-
 				sc.To = gr
 
 				return sc, nil
@@ -1326,7 +1105,6 @@ func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) 
 
 		if m3f, ok := p.GR[askd.F()]; ok {
 			dr[false] = m3f[false]
-			//logger.L.Infof("in repo.NewStoreChange dr: %v\n", dr)
 			gr[askd.F().IncPart()] = dr
 			sc.To = gr
 			return sc, nil
@@ -1334,21 +1112,17 @@ func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) 
 
 		gr[askd.T()] = dr
 		sc.To = gr
-		//logger.L.Infof("in repo.NewStoreChange sc: %v\n", sc)
 		return sc, nil
 
 	}
 	// dataPiece is AppPieceUnit
 
 	asv, err = NewAppStoreValue(d, bou)
-	//logger.L.Infof("in repo.NewStoreChange asv beginning part %d, err: %v\n", asv.B.Part, err)
 	if err != nil {
-		//logger.L.Errorf("in repo.NewStoreChange err: %v\n", err)
 		if !strings.Contains(err.Error(), "is not full") {
 			return sc, err
 		}
 	}
-	//logger.L.Infof("in repo.NewStoreChange asv = %v\n", asv)
 	dr[false] = asv
 
 	switch d.E() {
@@ -1365,10 +1139,6 @@ func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) 
 
 		}
 	case True:
-
-		//logger.L.Infof("in repo.NewStoreChange d.B == False, True case A = %d\n", sc.A)
-
-		//logger.L.Infof("in repo.NewStoreChange d.B == True, True case dr = %v\n", dr)
 		gr[askd.F().IncPart()] = dr
 		sc.To = gr
 		if err != nil {
@@ -1376,14 +1146,10 @@ func NewStoreChange(d DataPiece, p Presense, bou Boundary) (StoreChange, error) 
 				return sc, err
 			}
 		}
-		//logger.L.Infof("in repo.NewStoreChange d.B == False, True case sc = %v\n", sc)
 		return sc, err
-
-		//sc.ASKD = NewAppStoreKeyDetailed(d)
 
 	case False:
 	}
-	//logger.L.Infof("in repo.NewStoreChange d.B == False, sc = %v\n", sc)
 	return sc, nil
 }
 
@@ -1424,6 +1190,8 @@ const (
 	Intermediate              // not first and not last
 )
 
+// IsPartChanged returns true of part of ASKD to be changed due to sc.
+// Tested in models_test.go
 func IsPartChanged(sc StoreChange) bool {
 	pFrom, pTo := 0, 0
 	if len(sc.From) == 0 && len(sc.To) == 1 {
@@ -1477,8 +1245,8 @@ func (g *GId) AddGIds(i, j int) {
 	g.wantIDs = append(g.wantIDs, j)
 }
 
-// Compares wanted and real data
-// todo x is wanted, y is real
+// IsOk returns true if got data corresponds to want.
+// Tested in models_test.go
 func IsOk(name string, want, got []GRequest) bool {
 
 	//logger.L.Infof("in repo IsOk len(got) = %d\n", len(got))
@@ -1518,10 +1286,6 @@ func IsOk(name string, want, got []GRequest) bool {
 					if len(want) == 1 && len(got) == 1 {
 						return true
 					}
-
-					//x = append(x[:i], x[i+1:]...)
-					//want = append(want[:j], want[j+1:]...)
-
 					break
 				}
 			}
@@ -1530,45 +1294,27 @@ func IsOk(name string, want, got []GRequest) bool {
 			}
 			found = false
 		}
-
-		//logger.L.Infof("in repo IsOk v = %v\n", v)
-
 		if v.RType == S && v.FileInfo { // stream comparision
 			found = true
 			for j, w := range want {
 				found = false
 
-				//logger.L.Infof("in repo.IsOk v.FieldName = %s, w.FieldName = %v, equal? %t\n", v.FieldName, w.FieldName, v.FieldName == w.FieldName)
-				//		logger.L.Infof("in repo.IsOk v.FileName = %s, w.FileName = %v, equal? %t\n", v.FileName, w.FileName, v.FileName == w.FileName)
-
 				if v.RType == w.RType && v.FieldName == w.FieldName && v.FileName == w.FileName {
 
-					//logger.L.Infof("in repo.IsOk matched v = %v, w = %v\n", v, w)
-
 					nlast = 0
-
 					m := j + 1
 
 					for m < len(want) && want[m].FileData { // looping through want
 
 						found = false
-
-						//logger.L.Infof("in repo.IsOk want[m].FieldName: %q, want[m].ByteChunk: %q\n", want[m].FieldName, want[m].ByteChunk)
-
 						n := Max(i+1, nlast+1)
-
-						// for each m, looping through got do not restart after match
 
 						for n < len(got) {
 
 							if len(want[m].ByteChunk) == len(got[n].ByteChunk) && bytes.Contains(want[m].ByteChunk, got[n].ByteChunk) {
 
-								//logger.L.Infof("in repo.IsOk want[m].ByteChunk: %q, got[n].ByteChunk: %q\n", want[m].ByteChunk, got[n].ByteChunk)
-
 								nlast = n
-
 								found = true
-
 								ids.AddGIds(n, m)
 
 								break

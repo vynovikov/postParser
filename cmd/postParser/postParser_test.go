@@ -7,6 +7,7 @@ import (
 	"math"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -14,8 +15,6 @@ import (
 	"time"
 
 	"github.com/vynovikov/postParser/internal/adapters/driven/rpc"
-
-	//"workspaces/postParser/internal/adapters/driven/rpc/tosaver/pb"
 	tologger "github.com/vynovikov/postParser/internal/adapters/driven/rpc/tologger/pb"
 	"github.com/vynovikov/postParser/internal/adapters/driven/rpc/tosaver/pb"
 	tosaver "github.com/vynovikov/postParser/internal/adapters/driven/rpc/tosaver/pb"
@@ -61,6 +60,9 @@ func (s *mainSuite) SetupTest() {
 	sigChan = make(chan os.Signal, 1)
 
 	gotLast = -1
+
+	// gRPC services for testing
+
 	lisSaver, err := net.Listen("tcp", ":3100")
 	if err != nil {
 		logger.L.Errorf("in main.SetupTest failed to listen on 3100: %v\n", err)
@@ -78,8 +80,59 @@ func (s *mainSuite) SetupTest() {
 
 	go baseServer1.Serve(lisSaver)
 	go baseServer2.Serve(lisLogger)
+
+	// copying tls folder from root folder to cmd/postParser folder
+
+	srcDir := "../../tls"
+	dstDir := "tls"
+
+	if _, err := os.Stat(dstDir); os.IsNotExist(err) {
+
+		err = os.Mkdir(dstDir, 0777)
+		if err != nil {
+			logger.L.Errorf("in main.SetupTest failed create \"%s\" subfolder inside test folder: %v\n", dstDir, err)
+		}
+	}
+
+	entries, err := os.ReadDir(srcDir)
+	if err != nil {
+		logger.L.Errorf("in main.SetupTest failed to read \"../../tls\": %v", err)
+	}
+	for _, entry := range entries {
+		sourcePath := filepath.Join(srcDir, entry.Name())
+		destPath := filepath.Join(dstDir, entry.Name())
+		err = Copy(sourcePath, destPath)
+	}
+}
+func (s *mainSuite) TearDownTest() {
+	err := os.RemoveAll("tls")
+	if err != nil {
+		logger.L.Errorf("in main.TeatdownTest failed to remove \"tls\" folder: %v\n", err)
+	}
 }
 
+func Copy(s, d string) error {
+	dstFile, err := os.Create(d)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	srcFile, err := os.Open(s)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	_, err = io.Copy(dstFile, srcFile)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Should be tested in docker container if OS is Windows
 func (s *mainSuite) TestBetterGracefulShutdown() {
 	var tMean, tDeviation float64
 	dt := make([]time.Duration, 0)
@@ -565,7 +618,6 @@ func (s *mainSuite) TestBetterGracefulShutdown() {
 
 				tMean, tDeviation = study(dt)
 			case 2:
-				logger.L.Infof("in main.TestBetterGracefulShutdown tMean*0.5 = %v\n", tMean*0.5)
 				go castSIGINT(tMean * 0.5)
 				t := jobFull(s, v.initialSleep, v.postSleep, v.req, v.name, v.res, v.readFromConnErrString, v.wantGReqs, numChan, resChan)
 				s.Less(math.Abs(float64(t)-tMean), tDeviation*10)
@@ -580,33 +632,22 @@ func (s *mainSuite) TestBetterGracefulShutdown() {
 }
 
 func castSIGINT(t float64) {
-	//logger.L.Infoln("main.TestGracefulShutdown sending SIGINT...")
 	td := time.Duration(t)
-	logger.L.Infof("in main.castSIGINT td %v\n", td)
 	timer := time.NewTimer(td)
-	t0 := time.Now()
 	<-timer.C
-	logger.L.Infof("in main.castSIGINT timer fired in %v\n", time.Since(t0))
 	p, err := os.FindProcess(os.Getpid())
 	if err != nil {
 		logger.L.Error(err)
 	}
-	//logger.L.Infof("trying to send sigint to main")
 	p.Signal(syscall.SIGINT)
 }
 
 func jobFull(s *mainSuite, initialSleep, postSleep time.Duration, req []byte, name, res, readErrString string, wantGReqs []repo.GRequest, numChan chan int, resChan chan []repo.GRequest) time.Duration {
 	var t time.Duration
 	resB := make([]byte, 0)
-
-	//logger.L.Infoln("in main.jobFull sleeping")
 	time.Sleep(initialSleep)
-
-	//logger.L.Infoln("in main.jobFull dialing")
 	conn, err := net.Dial("tcp", ":3000")
 	s.NoError(err)
-
-	//logger.L.Infoln("in main.jobFull writing")
 	_, err = conn.Write(req)
 	t0 := time.Now()
 	s.NoError(err)
@@ -616,18 +657,14 @@ func jobFull(s *mainSuite, initialSleep, postSleep time.Duration, req []byte, na
 		return t
 	}
 	numChan <- len(wantGReqs)
-
-	//logger.L.Infoln("in main.jobFull reading response")
 	conn.SetReadDeadline(time.Now().Add(time.Millisecond * 25))
 	resB, err = ioutil.ReadAll(conn)
 	if err != nil {
 		s.True(strings.Contains(err.Error(), readErrString))
 	}
-	//logger.L.Infoln("in main.jobFull reciving result")
 	result := <-resChan
 
 	t = time.Since(t0)
-	//logger.L.Infof("in main.initJob t: %v\n", t)
 
 	s.Equal(res, string(resB))
 
@@ -637,7 +674,6 @@ func jobFull(s *mainSuite, initialSleep, postSleep time.Duration, req []byte, na
 
 	time.Sleep(postSleep)
 
-	//logger.L.Infoln("in main.jobFull returning")
 	return t
 }
 func study(durSlice []time.Duration) (float64, float64) {
@@ -665,17 +701,12 @@ func jobBrief(s *mainSuite, name string, req []byte, wantGReqs []repo.GRequest, 
 	if len(wantGReqs) == 0 {
 		return
 	}
-	logger.L.Infoln("in main.jobBrief sleeping")
 	initialSleep := math.Max(float64(60*len(wantGReqs)), 200)
 
 	time.Sleep(time.Duration(initialSleep) * time.Millisecond)
-
-	logger.L.Infoln("in main.jobBrief dialing")
 	conn, err := net.Dial("tcp", ":3000")
 	s.NoError(err)
 	defer conn.Close()
-
-	logger.L.Infoln("in main.jobBrief writing request")
 	_, err = conn.Write(req)
 	s.NoError(err)
 
@@ -684,22 +715,16 @@ func jobBrief(s *mainSuite, name string, req []byte, wantGReqs []repo.GRequest, 
 	if strings.Contains(name, "last boundary in the end") {
 		n++
 	}
-
-	logger.L.Infof("in main.jobBrief sending %d to numChan\n", n)
 	numChan <- n
-
-	logger.L.Infoln("in main.jobBrief waiting for result")
 	result := <-resChan
-	logger.L.Infof("in main.jobBrief result len %d\n", len(result))
 	s.True(repo.IsOk(name, wantGReqs, result))
 }
 
+// TestWorkflow performs end to end testing of whole app
 func (s *mainSuite) TestWorkflow() {
 
 	go main()
 	go compose(numChan, reqChan, resChan)
-
-	//time.Sleep(time.Millisecond * 200)
 
 	tt := []struct {
 		name      string
@@ -1988,10 +2013,7 @@ func (s *mainSuite) TestWorkflow() {
 
 }
 
-// time.Millisecond * 200
-
 func (ss *SaverServer) SinglePart(ctx context.Context, in *tosaver.TextFieldReq) (*pb.TextFieldRes, error) {
-	//logger.L.Infof("in main.SinglePart received %v\n", in)
 	resToChan := rpc.DecodeUnaryReq(in)
 
 	resToReturn := &pb.TextFieldRes{Result: true}
@@ -2005,22 +2027,15 @@ func (ss *SaverServer) MultiPart(stream tosaver.Saver_MultiPartServer) error {
 	if err != nil {
 		return err
 	}
-	//	l.Lock()
 
 	reqInfoToChan := rpc.DecodeStreamInfoReq(reqInfo)
 	logger.L.Infof("in main.MultiPart initial req %v, decoded %v\n", reqInfo, reqInfoToChan)
 	reqChan <- reqInfoToChan
 
 	for {
-		/*
-			if n > 0 {
-				l.Lock()
-			}
-		*/
 		reqData, err := stream.Recv()
 
 		if err == io.EOF {
-			//logger.L.Info("stream was closed by client")
 			break
 		}
 
@@ -2030,9 +2045,7 @@ func (ss *SaverServer) MultiPart(stream tosaver.Saver_MultiPartServer) error {
 		}
 
 		resDataToChan := rpc.DecodeStreamDataReq(reqData, reqInfo.GetFileInfo())
-		logger.L.Infof("in main.MultiPart for looped req %v\n", reqData)
 		reqChan <- resDataToChan
-		//	l.Unlock()
 		n++
 	}
 
@@ -2049,7 +2062,6 @@ func (ss *SaverServer) MultiPart(stream tosaver.Saver_MultiPartServer) error {
 	return nil
 }
 func (sl *LogServer) Log(ctx context.Context, in *tologger.LogReq) (*tologger.LogRes, error) {
-	logger.L.Infof("in main.Log received %v\n", in)
 	return &tologger.LogRes{Result: true}, nil
 }
 
@@ -2066,10 +2078,6 @@ func feedback(reqChan chan repo.GRequest, gReqs *[]repo.GRequest) {
 			l.Unlock()
 			continue
 		}
-
-		nm := n == 0 && m == 1
-
-		logger.L.Infof("in main.feedback req fieldName: %q, fileName: %q, byteChunk: %q, first? %t, last? %t, fileInfo? %t, fileData? %v, RType %d, len(gRecs) = %d, nm = %t\n", r.FieldName, r.FileName, r.ByteChunk, r.IsFirst, r.IsLast, r.FileInfo, r.FileData, r.RType, len(*gReqs), nm)
 		n++
 		old = *gReqs
 		if r.RType == repo.U && r.IsLast {
@@ -2079,7 +2087,6 @@ func feedback(reqChan chan repo.GRequest, gReqs *[]repo.GRequest) {
 			new = append(make([]repo.GRequest, 0), r)
 			*gReqs = append(new, *gReqs...)
 			l.Unlock()
-			logger.L.Infof("in main.feedback len(gReqs) became %d\n", len(*gReqs))
 			continue
 		}
 		if r.RType == repo.U && lastSaved && !r.IsLast { // Last one came too early, should swap it with last unit
@@ -2092,7 +2099,6 @@ func feedback(reqChan chan repo.GRequest, gReqs *[]repo.GRequest) {
 				}
 			}
 			l.Unlock()
-			logger.L.Infof("in main.feedback len(gReqs) became %d\n", len(*gReqs))
 			continue
 		}
 		if r.RType == repo.S && r.IsLast {
@@ -2103,40 +2109,23 @@ func feedback(reqChan chan repo.GRequest, gReqs *[]repo.GRequest) {
 				(*gReqs)[len-1].IsLast = true
 
 				l.Unlock()
-				logger.L.Infof("in main.feedback len(gReqs) became %d\n", len)
 				continue
 
 			}
 		}
 
 		if r.RType == repo.S && r.IsFirst && len(old) > 0 {
-
-			//logger.L.Infof("in main.TestMain during first stage swapping old = %v\n", old)
 			new = append(make([]repo.GRequest, 0), r)
-			//gReqs = append(make([]repo.GRequest, 0), r)
-
-			//logger.L.Infof("in main.TestMain during first stage swapping gReqs = %v\n", gReqs)
 			l.Unlock()
-			logger.L.Infof("in main.feedback len(gReqs) became %d\n", len(*gReqs))
 			continue
-			//gReqs = append(make([]repo.GRequest, 0), old...)
 		}
 		if r.RType == repo.S && r.FileData && len(new) == 1 && len(old) > 0 {
 			new = append(new, r)
-			/*
-				new = append(new, old...)
-			*/
 			*gReqs = make([]repo.GRequest, 0)
 			*gReqs = append(*gReqs, new...)
 			*gReqs = append(*gReqs, old...)
-			//old = make([]repo.GRequest, 0)
 			l.Unlock()
-			logger.L.Infof("in main.feedback len(gReqs) became %d\n", len(*gReqs))
 			continue
-			//	gReqs = append(gReqs, r)
-			//	gReqs = append(gReqs, old...)
-			//logger.L.Infof("in main.TestMain after second stage swapping gReqs = %v\n", gReqs)
-
 		}
 		if r.RType == repo.S && lastSaved && !r.IsLast {
 			for i, v := range *gReqs {
@@ -2148,23 +2137,10 @@ func feedback(reqChan chan repo.GRequest, gReqs *[]repo.GRequest) {
 				}
 			}
 			l.Unlock()
-			logger.L.Infof("in main.feedback len(gReqs) became %d\n", len(*gReqs))
 			continue
 		}
-		/*if r.RType == repo.S && len(r.ByteChunk) == 0 && r.IsLast && len(old) > 0 {
-			//gReqs[len(gReqs)-1].IsLast = true
-			len := len(*gReqs)
-			(*gReqs)[len-1].IsLast = true
-			l.Unlock()
-
-			logger.L.Infof("in main.feedback len(gReqs) became %d\n", len)
-			continue
-		}
-		*/
 		*gReqs = append(*gReqs, r)
-		//logger.L.Infof("in main.feedback after ptr = %v", gReqs)
 		l.Unlock()
-		logger.L.Infof("in main.feedback len(gReqs) became %d\n", len(*gReqs))
 	}
 }
 
@@ -2172,21 +2148,10 @@ func compose(numChan chan int, reqChan chan repo.GRequest, resChan chan []repo.G
 
 	for n := range numChan {
 		res := make([]repo.GRequest, 0)
-		//logger.L.Infof("main.compose from numChan got %d\n", n)
-		//t0 := time.Now()
 		for j := 0; j < n; j++ {
-			//logger.L.Infof("main.compose j %d\n", j)
-			//logger.L.Infof("in main.compose waiting for req from reqChan len = %d\n", len(reqChan))
 			r := <-reqChan
-			//logger.L.Warnf("in main.compose r: {fieldName: %q, fileName: %q, byteChunk %q, isFirst %t, isLast %t}\n", r.FieldName, r.FileName, r.ByteChunk, r.IsFirst, r.IsLast)
 			res = add(res, r)
 		}
-		//logger.L.Infof("in main.compose took %v time\n", float64(time.Since(t0)))
-		/*
-			for i, v := range res {
-				logger.L.Infof("in main.compose res i = %d, v.ByteChunk: %q\n", i, v.ByteChunk)
-			}
-		*/
 		gotLast = -1
 		resChan <- res
 
@@ -2208,22 +2173,14 @@ func add(res []repo.GRequest, r repo.GRequest) []repo.GRequest {
 		res[len(res)-1].IsLast = true
 
 	case r.IsLast && gotLast < 0:
-
-		//logger.L.Warnf("main.fixGRPCIssues received last request %v\n", r)
 		gotLast = len(res)
-		//logger.L.Warnf("main.fixGRPCIssues gotLast = %d\n", gotLast)
 		res = append(res, r)
-		//logger.L.Warnf("main.fixGRPCIssues res = %v\n", res)
 
 	case gotLast > 0 && !r.IsLast:
-
-		//logger.L.Errorf("main.fixGRPCIssues from reqChan after last received %v\n", r)
 		old := res[gotLast]
 		res[gotLast] = r
 		gotLast = len(res)
 		res = append(res, old)
-
-		//logger.L.Warnf("main.fixGRPCIssues res = %v\n", res)
 
 	default:
 		res = append(res, r)
@@ -2256,13 +2213,10 @@ func (s *mainSuite) TestToLogger() {
 	}
 	for _, v := range tt {
 		s.Run(v.name, func() {
-
-			//logger.L.Infoln("in main.TestToLogger dialing")
 			conn, err := net.Dial("tcp", ":3000")
 			s.NoError(err)
 			defer conn.Close()
 
-			//logger.L.Infoln("in main.TestToLogger writing request")
 			_, err = conn.Write(v.req)
 			s.NoError(err)
 			time.Sleep(time.Second * 5)

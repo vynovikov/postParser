@@ -1,5 +1,6 @@
 package repo
 
+// Min returns minimun number
 func Min(a, b int) int {
 	if a > b {
 		return b
@@ -7,6 +8,7 @@ func Min(a, b int) int {
 	return a
 }
 
+// Max returns maximum number
 func Max(a, b int) int {
 	if a > b {
 		return a
