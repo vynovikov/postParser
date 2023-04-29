@@ -38,7 +38,7 @@ PostParser has hexagonal architecture. All its modules are loosely coupled and c
 >Stores current state of store. If dataPiece's part is matched with Register's, dataPiece is headed to transfer and Register's part is increased by 1, otherwise it stores in Buffer. After successful registration, Buffer elements are trying to register.
 
 >**Buffer**
->Stores dataPieces. Keeps  being sorted after each addition. Tries to register stored elements >after successful registration of new dataPiece
+>Stores dataPieces. Keeps  being sorted after each addition. Tries to register stored elements after successful registration of new dataPiece
 
 ​																													*\* click image below to activate animation*
 ![](forManual/1.gif)
@@ -66,8 +66,8 @@ After receiving interrupt signal, application first finishes its current work , 
 #### Action sequence
 
 * HTTP and HTTP listeners are closed immediately.  Application cannot receive new requests from that moment on
-* Waiting for receiver goroutines to finish their job, then close chanIn (channel used to deliver new data for application). If there are no jobs, chanIn are closed immediately
-* Waiting for application workers to stop, then close chanOut (channel used to deliver data to transmitting module)
+* Wait for receiver goroutines to finish their job, then close chanIn (channel used to deliver new data for application). If there are no jobs, chanIn are closed immediately
+* Wait for application workers to stop, then close chanOut (channel used to deliver data to transmitting module)
 * Waiting for transmitter goroutines to stop then close whole app
 
 sync.RWMutex and sync.WaitGroup are used to perform these actions.
