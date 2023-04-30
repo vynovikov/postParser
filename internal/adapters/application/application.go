@@ -472,6 +472,8 @@ func (a *App) Stop() {
 
 	a.A.W.Workers.Wait()
 	close(a.A.C.ChanOut)
+	a.toChanLog("postParser is down")
+	close(a.A.C.ChanLog)
 	a.A.W.Sender.Wait()
 	close(a.A.C.Done)
 }
